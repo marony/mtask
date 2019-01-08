@@ -3,17 +3,9 @@ import sbtcrossproject.{crossProject, CrossType}
 val scalaV = "2.12.8"
 val diodeV = "1.1.4"
 
-val commonScalacOptions = Seq(
-  "-deprecation",
-  "-encoding", "UTF-8",
-  "-feature",
-  "-language:_",
-  "-unchecked",
-  "-Yno-adapted-args",
-  "-Ywarn-numeric-widen",
-  "-Xfuture",
-  "-Ypartial-unification",
-)
+val commonScalacOptions = ScalacOptions.scalacOptions
+
+resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/"
 
 lazy val server = (project in file("server")).settings(commonSettings).settings(
   scalaJSProjects := Seq(client),
@@ -24,6 +16,10 @@ lazy val server = (project in file("server")).settings(commonSettings).settings(
   libraryDependencies ++= Seq(
     "com.vmunier" %% "scalajs-scripts" % "1.1.2",
     "io.suzaku" %%% "diode" % diodeV,
+
+    "org.webjars" %% "webjars-play" % "2.6.3",
+    "org.webjars" % "bootstrap" % "4.2.1",
+
     guice,
     specs2 % Test
   ),
@@ -49,7 +45,7 @@ lazy val client = (project in file("client")).settings(commonSettings).settings(
   ),
   npmDependencies in Compile ++= Seq(
       "react" -> "16.5.1",
-      "react-dom" -> "16.5.1"
+      "react-dom" -> "16.5.1",
   )
 ).enablePlugins(ScalaJSPlugin, ScalaJSWeb, ScalaJSBundlerPlugin).
   dependsOn(sharedJs)
@@ -62,6 +58,7 @@ lazy val sharedJvm = shared.jvm
 lazy val sharedJs = shared.js
 
 lazy val commonSettings = Seq(
+  scalacOptions ++= ScalacOptions.scalacOptions,
   scalaVersion := scalaV,
   organization := "com.binbo_kodakusan",
 )

@@ -1,9 +1,11 @@
-@(message: String)
+@(message: String)(implicit webJarsUtil: org.webjars.play.WebJarsUtil)
 
 @main("Play with Scala.js") {
-<div id="hello"></div>
-@scalajs.html.scripts(
-    "client",
-    name => routes.Assets.versioned(name).toString,
-    name => getClass.getResource(s"/public/$name") != null)
+    <div class="col-sm">@message</div>
+    <div class="col-sm" id="hello"></div>
+    @scalajs.html.scripts(
+        projectName = "client",
+        assets = name => routes.Assets.versioned(name).toString,
+        resourceExists = name => getClass.getResource(s"/public/$name") != null
+    )
 }

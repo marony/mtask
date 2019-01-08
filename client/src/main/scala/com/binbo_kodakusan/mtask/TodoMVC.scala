@@ -4,8 +4,8 @@ import boopickle.Default._
 import diode.dev.{Hooks, PersistStateIDB}
 import org.scalajs.dom
 
-import scala.scalajs.js.JSApp
-import scala.scalajs.js.annotation.{JSExport, JSExportTopLevel}
+import scala.scalajs.js
+import scala.scalajs.js.annotation.{JSExport, JSExportTopLevel, JSImport}
 import japgolly.scalajs.react._
 import japgolly.scalajs.react.extra.OnUnmount
 import japgolly.scalajs.react.extra.router._
@@ -15,7 +15,7 @@ import scala.scalajs.js.typedarray.TypedArrayBufferOps._
 import scala.scalajs.js.typedarray._
 
 @JSExportTopLevel("TodoMVC")
-object TodoMVC extends JSApp {
+object TodoMVC extends js.JSApp {
 
   val baseUrl = BaseUrl(dom.window.location.href.takeWhile(_ != '#'))
 
