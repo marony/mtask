@@ -1,0 +1,9 @@
+@(message: String)
+
+@main("Play with Scala.js") {
+<div id="hello"></div>
+@scalajs.html.scripts(
+    "client",
+    name => routes.Assets.versioned(name).toString,
+    name => getClass.getResource(s"/public/$name") != null)
+}
