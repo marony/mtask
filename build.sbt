@@ -14,6 +14,9 @@ lazy val server = (project in file("server")).settings(commonSettings).settings(
   // triggers scalaJSPipeline when using compile or continuous compilation
   compile in Compile := ((compile in Compile) dependsOn scalaJSPipeline).value,
   libraryDependencies ++= Seq(
+    "org.postgresql" % "postgresql" % "42.2.5",
+    "com.typesafe.play" %% "play-slick" % "3.0.3",
+    "com.typesafe.play" %% "play-slick-evolutions" % "3.0.3",
     "com.vmunier" %% "scalajs-scripts" % "1.1.2",
     "io.suzaku" %%% "diode" % diodeV,
 
