@@ -1,19 +1,19 @@
 package com.binbo_kodakusan.mtask.controllers
 
-import javax.inject._
 import com.binbo_kodakusan.mtask.dao.UserDAO
 import com.binbo_kodakusan.mtask.shared.SharedMessages
+import com.binbo_kodakusan.mtask.models.Tables
+import com.binbo_kodakusan.mtask.models.Tables.UsersRow
+import javax.inject._
 import play.api.{Configuration, Play}
 import play.api.mvc._
-
-//import slick.driver.PostgresDriver.api._
-//import slick.jdbc.PostgresProfile.api._
 
 import scala.concurrent.ExecutionContext
 
 @Singleton
 class Application @Inject()
-  (config: Configuration, userDao: UserDAO, cc: ControllerComponents)
+  (config: Configuration, cc: ControllerComponents)
+  (userDAO: UserDAO)
   (implicit ec: ExecutionContext, webJarsUtil: org.webjars.play.WebJarsUtil)
     extends AbstractController(cc) {
 
@@ -21,9 +21,14 @@ class Application @Inject()
     var value = config.get[String]("application.mode").toString
 
     {
-      val all = userDao.all().map { cats =>
-        value = value + "*" + cats.toString
-      }
+//      val all = Tables.Users.map { user =>
+//        value = value + "*" + user.username
+//      }
+      userDAO.all().map { (users: Seq[Tables.UsersRow]) =>
+        users.map { (user: Tables.UsersRow) =>
+          value = value + "*" + user.username
+        }
+      }.value
     }
 
     Ok(views.html.index(SharedMessages.itWorks + ":" + value))
