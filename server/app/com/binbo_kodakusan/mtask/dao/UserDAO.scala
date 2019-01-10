@@ -13,5 +13,5 @@ class UserDAO @Inject()
 
   import profile.api._
 
-  def all() = db.run(Tables.Users.map(u => u).result)
+  def all() = db.run(Tables.Users.result)
 }
