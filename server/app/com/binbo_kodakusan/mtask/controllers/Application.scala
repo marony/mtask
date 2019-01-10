@@ -8,7 +8,9 @@ import play.Logger
 import play.api.Configuration
 import play.api.mvc._
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContext}
+import scala.util.{Failure, Success}
 
 @Singleton
 class Application @Inject()
@@ -23,21 +25,20 @@ class Application @Inject()
     var value = config.get[String]("application.mode").toString
 
     {
-      userDAO.all().map { (users: Seq[Tables.UsersRow]) =>
+      val f = userDAO.all().map { (users: Seq[Tables.UsersRow]) =>
         users.map { (user: Tables.UsersRow) =>
-          value = value + "*" + "A:" + user.username
+          user.username
         }
       }
-      userDAO.all().map { (users: Seq[Tables.UsersRow]) =>
-        users.map { (user: Tables.UsersRow) =>
-          value = value + "*" + "B:" + user.username
-        }
-      }.value
+      Await.ready(f, Duration.Inf)
+      f.value.get match {
+        case Success(name) => value = value + "*" + "A:" + name
+        case Failure(ex) => Logger.error(ex.toString)
+      }
     }
 
     Logger.info("END: Application(index)")
 
     Ok(views.html.index(SharedMessages.itWorks + ":" + value))
   }
-
 }
