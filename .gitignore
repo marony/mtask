@@ -32,3 +32,6 @@ shared/.jvm
 bin/
 
 production.conf
+application.conf
+sensitive.txt
+
