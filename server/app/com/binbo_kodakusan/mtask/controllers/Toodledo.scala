@@ -126,7 +126,6 @@ class Toodledo @Inject()
     Logger.info(s"Toodledo::callback called: code = $code, state = $state, error = $error")
 
     checkState(request, state, error).flatMap { case _ => {
-      // 成功
       // codeからアクセストークンを取得
       getAccessToken(request, code).map { case (token, refresh_token, expires_in) =>
         Redirect(routes.Application.app)
