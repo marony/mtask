@@ -11,7 +11,7 @@ import play.api.libs.ws._
 import com.binbo_kodakusan.mtask.Constants
 import play.api.{Configuration, Logger}
 
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 @Singleton
 class Toodledo @Inject()
@@ -53,22 +53,22 @@ class Toodledo @Inject()
     * @tparam T
     * @return
     */
-  private[this] def checkState[T](request: Request[T], state: String, error: Option[String]): Option[String] = {
+  private[this] def checkState[T](request: Request[T], state: String, error: Option[String]): Try[Unit] = {
     error.map { e =>
       // error is Some(e)
-      Some(e)
+      Failure(new Exception(e))
     }.getOrElse {
       request.session.get("td_state").map { myState =>
         if (myState == state) {
-          None
+          Success(())
         } else {
           // TODO: メッセージ定義
-          Some("invalid state")
+          Failure(new Exception("invalid state"))
         }
       }.getOrElse {
         // session is null
         // TODO: メッセージ定義
-        Some("invlaid user")
+        Failure(new Exception("invalid user"))
       }
     }
   }
@@ -79,7 +79,7 @@ class Toodledo @Inject()
     * @param code
     * @return
     */
-  private[this] def getAccessToken[T](request: Request[T], code: String): Option[(String, String, Int)] = {
+  private[this] def getAccessToken[T](request: Request[T], code: String): Try[(String, String, Int)] = {
     val url = config.get[String]("toodledo.token.url")
     val client_id = config.get[String]("toodledo.client_id")
     val secret = config.get[String]("toodledo.secret")
@@ -89,33 +89,30 @@ class Toodledo @Inject()
       .withAuth(client_id, secret, WSAuthScheme.BASIC)
     Logger.info(s"request to ${wsreq.url}")
 
-    var r: Option[(String, String, Int)] = None
     val f = wsreq.post(Map(
       "grant_type" -> "authorization_code",
       "code" -> code,
       "device" -> device
-    ))
-    f onComplete {
-      case Success(response) => {
-        Logger.info(response.body)
+    )).map { response =>
+      Logger.info(response.body)
 
-        // レスポンスからアクセストークンを取得
-        val token = (response.json \ "access_token").as[String]
-        val expires_in = (response.json \ "expires_in").as[Int]
-        val token_type = (response.json \ "token_type").as[String]
-        val scope = (response.json \ "scope").as[String]
-        val refresh_token = (response.json \ "refresh_token").as[String]
-        Logger.info(s"token = $token, expires_in = $expires_in, token_type = $token_type, scope = $scope, refresh_token = $refresh_token")
+      // レスポンスからアクセストークンを取得
+      val token = (response.json \ "access_token").as[String]
+      val expires_in = (response.json \ "expires_in").as[Int]
+      val token_type = (response.json \ "token_type").as[String]
+      val scope = (response.json \ "scope").as[String]
+      val refresh_token = (response.json \ "refresh_token").as[String]
+      Logger.info(s"token = $token, expires_in = $expires_in, token_type = $token_type, scope = $scope, refresh_token = $refresh_token")
 
-        r = Some((token, refresh_token, expires_in))
-      }
-      case Failure(ex) => {
+      Success((token, refresh_token, expires_in))
+    }.recover {
+      case ex => {
         Logger.error(s"ERROR1: $ex")
+        Failure(ex)
       }
     }
     Await.ready(f, Duration.Inf)
-    Logger.warn(r.toString)
-    r
+    f.value.get.get
   }
 
   /**
@@ -128,34 +125,25 @@ class Toodledo @Inject()
     Action { implicit request =>
     Logger.info(s"Toodledo::callback called: code = $code, state = $state, error = $error")
 
-    checkState(request, state, error) match {
-      case Some(e) => {
-        Logger.error(e)
+    checkState(request, state, error).flatMap { case _ => {
+      // 成功
+      // codeからアクセストークンを取得
+      getAccessToken(request, code).map { case (token, refresh_token, expires_in) =>
+        Redirect(routes.Application.app)
+          .withSession(
+            Constants.SessionName.TD_TOKEN -> token,
+            Constants.SessionName.TD_REFRESH_TOKEN -> refresh_token,
+            Constants.SessionName.TD_EXPIRES_IN -> expires_in.toString,
+            Constants.SessionName.TD_AT_TOKEN_TOOK -> System.currentTimeMillis.toString
+          )
+      }
+    }}.recover {
+      case ex => {
+        Logger.error(ex.toString)
         // TODO: フラッシュでエラー内容表示
         Redirect(routes.Application.index)
           .withNewSession
       }
-      case None => {
-        // 成功
-        // codeからアクセストークンを取得
-        getAccessToken(request, code) match {
-          case Some((token, refresh_token, expires_in)) => {
-            Redirect(routes.Application.app)
-              .withSession(
-                Constants.SessionName.TD_TOKEN -> token,
-                Constants.SessionName.TD_REFRESH_TOKEN -> refresh_token,
-                Constants.SessionName.TD_EXPIRES_IN -> expires_in.toString,
-                Constants.SessionName.TD_AT_TOKEN_TOOK -> System.currentTimeMillis.toString
-              )
-          }
-          case None => {
-            Logger.error("ERROR2: ")
-            // TODO: フラッシュでエラー内容表示
-            Redirect(routes.Application.index)
-              .withNewSession
-          }
-        }
-      }
-    }
+    }.get
   }
 }
