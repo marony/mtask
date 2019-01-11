@@ -24,6 +24,7 @@ lazy val server = (project in file("server")).settings(commonSettings).settings(
     "org.webjars" %% "webjars-play" % "2.6.3",
     "org.webjars" % "bootstrap" % "4.2.1",
 
+    ws,
     guice,
     specs2 % Test
   ),
