@@ -25,19 +25,21 @@ class Toodledo @Inject()
     *
     * @return
     */
-  def authorize() = Action {
+  def authorize() = Action { implicit request =>
     Logger.info(s"Toodledo::authorize called")
 
     val url = config.get[String]("toodledo.authorize.url")
     val client_id = config.get[String]("toodledo.client_id")
     val state = java.util.UUID.randomUUID.toString
     val scope = config.get[String]("toodledo.authorize.scope")
+    val device = request.headers("User-Agent")
 
     Redirect(url, Map(
       "response_type" -> Seq("code"),
       "client_id" -> Seq(client_id),
       "state" -> Seq(state),
-      "scope" -> Seq(scope)
+      "scope" -> Seq(scope),
+      "device" -> Seq(device)
     ))
       .withSession(Constants.SessionName.TD_STATE -> state)
   }
@@ -77,19 +79,21 @@ class Toodledo @Inject()
     * @param code
     * @return
     */
-  private[this] def getAccessToken(code: String): Option[(String, String, Int)] = {
+  private[this] def getAccessToken[T](request: Request[T], code: String): Option[(String, String, Int)] = {
     val url = config.get[String]("toodledo.token.url")
     val client_id = config.get[String]("toodledo.client_id")
     val secret = config.get[String]("toodledo.secret")
+    val device = request.headers("User-Agent")
 
-    val request = ws.url(url)
+    val wsreq = ws.url(url)
       .withAuth(client_id, secret, WSAuthScheme.BASIC)
-    Logger.info(s"request to ${request.url}")
+    Logger.info(s"request to ${wsreq.url}")
 
     var r: Option[(String, String, Int)] = None
-    val f = request.post(Map(
+    val f = wsreq.post(Map(
       "grant_type" -> "authorization_code",
-      "code" -> code
+      "code" -> code,
+      "device" -> device
     ))
     f onComplete {
       case Success(response) => {
@@ -134,7 +138,7 @@ class Toodledo @Inject()
       case None => {
         // 成功
         // codeからアクセストークンを取得
-        getAccessToken(code) match {
+        getAccessToken(request, code) match {
           case Some((token, refresh_token, expires_in)) => {
             Redirect(routes.Application.app)
               .withSession(
