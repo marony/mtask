@@ -4,8 +4,7 @@ import com.binbo_kodakusan.mtask.dao.UserDAO
 import com.binbo_kodakusan.mtask.shared.SharedMessages
 import com.binbo_kodakusan.mtask.models.Tables
 import javax.inject._
-import play.Logger
-import play.api.Configuration
+import play.api.{Configuration, Logger}
 import play.api.mvc._
 
 import scala.concurrent.duration.Duration
@@ -19,7 +18,20 @@ class Application @Inject()
   (implicit ec: ExecutionContext, webJarsUtil: org.webjars.play.WebJarsUtil)
     extends AbstractController(cc) {
 
+  /**
+    * トップページ
+    *
+    * @return
+    */
   def index = Action {
+    Ok(views.html.index("タイトルだよ"))
+  }
+
+  /**
+    * Reactアプリ
+    * @return
+    */
+  def app = Action {
     Logger.info("START: Application(index)")
 
     var value = config.get[String]("application.mode").toString
@@ -37,8 +49,6 @@ class Application @Inject()
       }
     }
 
-    Logger.info("END: Application(index)")
-
-    Ok(views.html.index(SharedMessages.itWorks + ":" + value))
+    Ok(views.html.app("タイトルだよ", SharedMessages.itWorks + ":" + value))
   }
 }

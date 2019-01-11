@@ -1,11 +1,24 @@
-@(message: String)(implicit webJarsUtil: org.webjars.play.WebJarsUtil)
+@(title: String)(implicit webJarsUtil: org.webjars.play.WebJarsUtil)
 
-@main("Play with Scala.js") {
-    <div class="col-sm">@message</div>
-    <div class="col-sm" id="hello"></div>
-    @scalajs.html.scripts(
-        projectName = "client",
-        assets = name => routes.Assets.versioned(name).toString,
-        resourceExists = name => getClass.getResource(s"/public/$name") != null
-    )
+@main(title) {
+    @* jumbotron *@
+    <div class="jumbotron mt-4">
+        <div class="row">
+            <div class="col-sm-9">
+                <h1 class="display-4">こんにちは!</h1>
+                <p class="lead">これは単純なヒーローユニット、注目のコンテンツや情報に特別な注意を喚起するためのシンプルなジャンボトロンスタイルのコンポーネント。</p>
+                <hr class="my-4">
+                <p>より大きなコンテナの範囲内でコンテンツに空間をあけるため、文字の体裁と空白用のユーティリティクラスを使用している。</p>
+            </div>
+            <div class="col-sm-3">
+                <p>認証処理は後で作るよ</p>
+                <a href="/td_authorize"><button type="button" class="btn btn-primary">Toodledoでログイン</button></a>
+            </div>
+        </div>
+    </div>
+    <script language="javascript" type="type/javascript">
+        function onAuthorizeClick()() {
+
+        }
+    </script>
 }

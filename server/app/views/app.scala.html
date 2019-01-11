@@ -1,0 +1,15 @@
+@(title: String, message: String)(implicit webJarsUtil: org.webjars.play.WebJarsUtil)
+
+@main(title) {
+    <div class="row">
+        <div class="col-sm-4">@message</div>
+        @* React *@
+        <div class="col-sm-8" id="hello"></div>
+        @* Scala.js *@
+        @scalajs.html.scripts(
+            projectName = "client",
+            assets = name => routes.Assets.versioned(name).toString,
+            resourceExists = name => getClass.getResource(s"/public/$name") != null
+        )
+    </div>
+}
