@@ -1,5 +1,7 @@
 package com.binbo_kodakusan.mtask.controllers
 
+import java.util.Date
+
 import javax.inject._
 
 import scala.concurrent.{Await, ExecutionContext}
@@ -75,7 +77,7 @@ class Toodledo @Inject()
     * @param code
     * @return
     */
-  private[this] def getAccessToken(code: String): Option[(String, String)] = {
+  private[this] def getAccessToken(code: String): Option[(String, String, Int)] = {
     val url = config.get[String]("toodledo.token.url")
     val client_id = config.get[String]("toodledo.client_id")
     val secret = config.get[String]("toodledo.secret")
@@ -84,7 +86,7 @@ class Toodledo @Inject()
       .withAuth(client_id, secret, WSAuthScheme.BASIC)
     Logger.info(s"request to ${request.url}")
 
-    var r: Option[(String, String)] = None
+    var r: Option[(String, String, Int)] = None
     val f = request.post(Map(
       "grant_type" -> "authorization_code",
       "code" -> code
@@ -99,15 +101,16 @@ class Toodledo @Inject()
         val token_type = (response.json \ "token_type").as[String]
         val scope = (response.json \ "scope").as[String]
         val refresh_token = (response.json \ "refresh_token").as[String]
-        Logger.info(s"token: token = $token, expires_in = $expires_in, token_type = $token_type, scope = $scope, refresh_token = $refresh_token")
+        Logger.info(s"token = $token, expires_in = $expires_in, token_type = $token_type, scope = $scope, refresh_token = $refresh_token")
 
-        r = Some((token, refresh_token))
+        r = Some((token, refresh_token, expires_in))
       }
       case Failure(ex) => {
         Logger.error(s"ERROR1: $ex")
       }
     }
     Await.ready(f, Duration.Inf)
+    Logger.warn(r.toString)
     r
   }
 
@@ -132,11 +135,13 @@ class Toodledo @Inject()
         // 成功
         // codeからアクセストークンを取得
         getAccessToken(code) match {
-          case Some((token, refresh_token)) => {
+          case Some((token, refresh_token, expires_in)) => {
             Redirect(routes.Application.app)
               .withSession(
                 Constants.SessionName.TD_TOKEN -> token,
-                Constants.SessionName.TD_REFRESH_TOKEN -> refresh_token
+                Constants.SessionName.TD_REFRESH_TOKEN -> refresh_token,
+                Constants.SessionName.TD_EXPIRES_IN -> expires_in.toString,
+                Constants.SessionName.TD_AT_TOKEN_TOOK -> System.currentTimeMillis.toString
               )
           }
           case None => {
