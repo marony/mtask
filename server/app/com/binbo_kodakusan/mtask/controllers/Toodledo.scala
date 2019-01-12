@@ -107,6 +107,8 @@ class Toodledo @Inject()
       Success((token, refresh_token, expires_in))
     }.recover {
       case ex => {
+        // responce at maintenance
+        // {"errorCode":4,"errorDesc":"The API is offline for maintenance."}
         Logger.error(s"ERROR1: $ex")
         Failure(ex)
       }
