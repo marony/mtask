@@ -44,6 +44,40 @@ class Toodledo @Inject()
   }
 
   /**
+    * Toodledoからの認証コールバック
+    * アクセストークンを取得する
+    *
+    * @return
+    */
+  def callback(code: String, state: String, error: Option[String]) =
+    Action { implicit request =>
+    Logger.info(s"Toodledo::callback called: code = $code, state = $state, error = $error")
+
+    Toodledo.checkState(config, ws, request, state, error).flatMap { case _ => {
+      // codeからアクセストークンを取得
+      Toodledo.getAccessToken(config, ws, request, code).map { case (token, refresh_token, expires_in) =>
+        Redirect(routes.Application.app)
+          .withSession(
+            Constants.SessionName.TD_TOKEN -> token,
+            Constants.SessionName.TD_REFRESH_TOKEN -> refresh_token,
+            Constants.SessionName.TD_EXPIRES_IN -> expires_in.toString,
+            Constants.SessionName.TD_AT_TOKEN_TOOK -> System.currentTimeMillis.toString
+          )
+      }
+    }}.recover {
+      case ex => {
+        Logger.error(ex.toString)
+        // フラッシュでエラー内容表示
+        Redirect(routes.Application.index)
+          .flashing("danger" -> ex.toString)
+          .withNewSession
+      }
+    }.get
+  }
+}
+
+object Toodledo {
+  /**
     * コールバックの内容をチェックしてエラーを返す
     *
     * @param request
@@ -52,7 +86,9 @@ class Toodledo @Inject()
     * @tparam T
     * @return
     */
-  private[this] def checkState[T](request: Request[T], state: String, error: Option[String]): Try[Unit] = {
+  def checkState[T](config: Configuration, ws: WSClient, request: Request[T],
+                    state: String, error: Option[String])
+                   (implicit ec: ExecutionContext): Try[Unit] = {
     error.map { e =>
       // error is Some(e)
       Failure(new Exception(e))
@@ -78,7 +114,9 @@ class Toodledo @Inject()
     * @param code
     * @return
     */
-  private[this] def getAccessToken[T](request: Request[T], code: String): Try[(String, String, Int)] = {
+  def getAccessToken[T](config: Configuration, ws: WSClient, request: Request[T],
+                        code: String)
+                       (implicit ec: ExecutionContext): Try[(String, String, Int)] = {
     val url = config.get[String]("toodledo.token.url")
     val client_id = config.get[String]("toodledo.client_id")
     val secret = config.get[String]("toodledo.secret")
@@ -115,37 +153,5 @@ class Toodledo @Inject()
     }
     Await.ready(f, Duration.Inf)
     f.value.get.get
-  }
-
-  /**
-    * Toodledoからの認証コールバック
-    * アクセストークンを取得する
-    *
-    * @return
-    */
-  def callback(code: String, state: String, error: Option[String]) =
-    Action { implicit request =>
-    Logger.info(s"Toodledo::callback called: code = $code, state = $state, error = $error")
-
-    checkState(request, state, error).flatMap { case _ => {
-      // codeからアクセストークンを取得
-      getAccessToken(request, code).map { case (token, refresh_token, expires_in) =>
-        Redirect(routes.Application.app)
-          .withSession(
-            Constants.SessionName.TD_TOKEN -> token,
-            Constants.SessionName.TD_REFRESH_TOKEN -> refresh_token,
-            Constants.SessionName.TD_EXPIRES_IN -> expires_in.toString,
-            Constants.SessionName.TD_AT_TOKEN_TOOK -> System.currentTimeMillis.toString
-          )
-      }
-    }}.recover {
-      case ex => {
-        Logger.error(ex.toString)
-        // フラッシュでエラー内容表示
-        Redirect(routes.Application.index)
-          .flashing("danger" -> ex.toString)
-          .withNewSession
-      }
-    }.get
   }
 }
