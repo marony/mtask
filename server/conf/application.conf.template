@@ -1,9 +1,12 @@
-play.i18n.langs=["ja"]
-play.http.filters=com.binbo_kodakusan.mtask.filters.Filters
+play {
+  i18n.langs=["ja"]
+  http.filters=com.binbo_kodakusan.mtask.filters.Filters
+  modules.enabled += "com.binbo_kodakusan.mtask.MyModule"
 
-play.assets {
-  path = "/public"
-  urlPrefix = "/assets"
+  assets {
+    path = "/public"
+    urlPrefix = "/assets"
+  }
 }
 
 toodledo {

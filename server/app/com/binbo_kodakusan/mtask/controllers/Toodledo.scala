@@ -1,7 +1,5 @@
 package com.binbo_kodakusan.mtask.controllers
 
-import java.util.Date
-
 import javax.inject._
 
 import scala.concurrent.{Await, ExecutionContext}
