@@ -9,6 +9,7 @@ import scala.concurrent.duration._
 import play.api.mvc._
 import play.api.libs.ws._
 import com.binbo_kodakusan.mtask.Constants
+import play.api.libs.ws.ahc.AhcCurlRequestLogger
 import play.api.{Configuration, Logger}
 
 import scala.util.{Failure, Success, Try}
@@ -86,6 +87,7 @@ class Toodledo @Inject()
     val device = request.headers("User-Agent")
 
     val wsreq = ws.url(url)
+      .withRequestFilter(AhcCurlRequestLogger())
       .withAuth(client_id, secret, WSAuthScheme.BASIC)
     Logger.info(s"request to ${wsreq.url}")
 
