@@ -1,4 +1,5 @@
 play.i18n.langs=["ja"]
+play.http.filters=com.binbo_kodakusan.mtask.filters.Filters
 
 play.assets {
   path = "/public"
