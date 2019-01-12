@@ -1,4 +1,4 @@
-@(title: String, message: String)(implicit webJarsUtil: org.webjars.play.WebJarsUtil)
+@(title: String, message: String)(implicit request: RequestHeader, webJarsUtil: org.webjars.play.WebJarsUtil)
 
 @main(title) {
     <div class="row">

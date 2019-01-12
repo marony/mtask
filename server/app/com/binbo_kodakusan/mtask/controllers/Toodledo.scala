@@ -143,8 +143,9 @@ class Toodledo @Inject()
     }}.recover {
       case ex => {
         Logger.error(ex.toString)
-        // TODO: フラッシュでエラー内容表示
+        // フラッシュでエラー内容表示
         Redirect(routes.Application.index)
+          .flashing("danger" -> ex.toString)
           .withNewSession
       }
     }.get

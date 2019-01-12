@@ -23,7 +23,7 @@ class Application @Inject()
     *
     * @return
     */
-  def index = Action {
+  def index = Action { implicit request =>
     Ok(views.html.index("タイトルだよ"))
   }
 
@@ -31,7 +31,7 @@ class Application @Inject()
     * Reactアプリ
     * @return
     */
-  def app = Action {
+  def app = Action { implicit request =>
     Logger.info("START: Application(index)")
 
     var value = config.get[String]("application.mode").toString
