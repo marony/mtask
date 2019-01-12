@@ -47,6 +47,9 @@ class Toodledo @Inject()
     * Toodledoからの認証コールバック
     * アクセストークンを取得する
     *
+    * @param code
+    * @param state
+    * @param error
     * @return
     */
   def callback(code: String, state: String, error: Option[String]) =
@@ -80,9 +83,12 @@ object Toodledo {
   /**
     * コールバックの内容をチェックしてエラーを返す
     *
+    * @param config
+    * @param ws
     * @param request
     * @param state
     * @param error
+    * @param ec
     * @tparam T
     * @return
     */
@@ -111,7 +117,12 @@ object Toodledo {
   /**
     * アクセストークン(とリフレッシュトークン)を取得
     *
+    * @param config
+    * @param ws
+    * @param request
     * @param code
+    * @param ec
+    * @tparam T
     * @return
     */
   def getAccessToken[T](config: Configuration, ws: WSClient, request: Request[T],
