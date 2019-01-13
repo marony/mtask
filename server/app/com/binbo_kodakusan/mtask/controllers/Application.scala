@@ -34,8 +34,6 @@ class Application @Inject()
   def app = Action { implicit request =>
     Logger.info("START: Application(index)")
 
-    var value = config.get[String]("application.mode").toString
-
     {
       val f = userDAO.all().map { (users: Seq[Tables.UsersRow]) =>
         users.map { (user: Tables.UsersRow) =>
@@ -44,11 +42,11 @@ class Application @Inject()
       }
       Await.ready(f, Duration.Inf)
       f.value.get match {
-        case Success(name) => value = value + "*" + "A:" + name
+        case Success(name) => name
         case Failure(ex) => Logger.error(ex.toString)
       }
     }
 
-    Ok(views.html.app("タイトルだよ", SharedMessages.itWorks + ":" + value))
+    Ok(views.html.app("タイトルだよ", SharedMessages.itWorks))
   }
 }

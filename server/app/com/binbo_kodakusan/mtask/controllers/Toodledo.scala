@@ -9,13 +9,14 @@ import play.api.libs.ws._
 import com.binbo_kodakusan.mtask.Constants
 import play.api.libs.ws.ahc.AhcCurlRequestLogger
 import play.api.{Configuration, Logger}
+import util.WSUtil
 
 import scala.util.{Failure, Success, Try}
 
 @Singleton
 class Toodledo @Inject()
-  (config: Configuration, ws: WSClient, cc: ControllerComponents)
-  (implicit ec: ExecutionContext, webJarsUtil: org.webjars.play.WebJarsUtil)
+  (cc: ControllerComponents)
+  (implicit ec: ExecutionContext, config: Configuration, ws: WSClient, webJarsUtil: org.webjars.play.WebJarsUtil)
     extends AbstractController(cc) {
 
   /**
@@ -39,8 +40,42 @@ class Toodledo @Inject()
       "state" -> Seq(state),
       "scope" -> Seq(scope),
       "device" -> Seq(device)
-    ))
-      .withSession(Constants.SessionName.TD_STATE -> state)
+    )).withSession(Constants.SessionName.TD_STATE -> state)
+  }
+
+  /**
+    * タスク一覧を取得する
+    *
+    * @return
+    */
+  def getTasks() = Action { implicit request =>
+    Logger.info(s"Toodledo::getTasks called")
+
+    val url = config.get[String]("toodledo.get_task.url")
+    val token = request.session.get(Constants.SessionName.TD_TOKEN).get
+
+    val wsreq = WSUtil.url(url)
+      .addQueryStringParameters(
+        "access_token" -> token,
+        "start" -> "0",
+        "num" -> "1000",
+        "fields" -> "folder,tag,star,priority,note"
+      )
+    Logger.info(s"request to ${wsreq.url}")
+
+    val f = wsreq.get.map { response =>
+      Logger.info(response.body)
+    }.recover {
+      case ex => {
+        // responce at maintenance
+        // {"errorCode":4,"errorDesc":"The API is offline for maintenance."}
+        Logger.error(s"ERROR1: $ex")
+        Failure(ex)
+      }
+    }
+    Await.ready(f, Duration.Inf)
+
+    Redirect(routes.Application.app)
   }
 
   /**
@@ -52,20 +87,20 @@ class Toodledo @Inject()
     * @param error
     * @return
     */
-  def callback(code: String, state: String, error: Option[String]) =
-    Action { implicit request =>
+  def callback(code: String, state: String, error: Option[String]) = Action { implicit request =>
     Logger.info(s"Toodledo::callback called: code = $code, state = $state, error = $error")
 
-    Toodledo.checkState(config, ws, request, state, error).flatMap { case _ => {
+    Toodledo.checkState(state, error).flatMap { case _ => {
       // codeからアクセストークンを取得
-      Toodledo.getAccessToken(config, ws, request, code).map { case (token, refresh_token, expires_in) =>
+      Toodledo.getAccessToken(code).map { case (token, refresh_token, expires_in) =>
+        val session =
+          (request.session - Constants.SessionName.TD_STATE ) +
+          (Constants.SessionName.TD_TOKEN -> token) +
+          (Constants.SessionName.TD_REFRESH_TOKEN -> refresh_token) +
+          (Constants.SessionName.TD_EXPIRES_IN -> expires_in.toString) +
+          (Constants.SessionName.TD_AT_TOKEN_TOOK -> System.currentTimeMillis.toString)
         Redirect(routes.Application.app)
-          .withSession(
-            Constants.SessionName.TD_TOKEN -> token,
-            Constants.SessionName.TD_REFRESH_TOKEN -> refresh_token,
-            Constants.SessionName.TD_EXPIRES_IN -> expires_in.toString,
-            Constants.SessionName.TD_AT_TOKEN_TOOK -> System.currentTimeMillis.toString
-          )
+          .withSession(session)
       }
     }}.recover {
       case ex => {
@@ -92,14 +127,15 @@ object Toodledo {
     * @tparam T
     * @return
     */
-  def checkState[T](config: Configuration, ws: WSClient, request: Request[T],
-                    state: String, error: Option[String])
-                   (implicit ec: ExecutionContext): Try[Unit] = {
+  def checkState[T](state: String, error: Option[String])
+                   (implicit config: Configuration, ws: WSClient, request: Request[T],
+                    ec: ExecutionContext): Try[Unit] = {
     error.map { e =>
+      // Toodledoからエラーを返された
       // error is Some(e)
       Failure(new Exception(e))
     }.getOrElse {
-      request.session.get("td_state").map { myState =>
+      request.session.get(Constants.SessionName.TD_STATE).map { myState =>
         if (myState == state) {
           Success(())
         } else {
@@ -125,16 +161,15 @@ object Toodledo {
     * @tparam T
     * @return
     */
-  def getAccessToken[T](config: Configuration, ws: WSClient, request: Request[T],
-                        code: String)
-                       (implicit ec: ExecutionContext): Try[(String, String, Int)] = {
+  def getAccessToken[T](code: String)
+                       (implicit config: Configuration, ws: WSClient, request: Request[T],
+                        ec: ExecutionContext): Try[(String, String, Int)] = {
     val url = config.get[String]("toodledo.token.url")
     val client_id = config.get[String]("toodledo.client_id")
     val secret = config.get[String]("toodledo.secret")
     val device = request.headers("User-Agent")
 
-    val wsreq = ws.url(url)
-      .withRequestFilter(AhcCurlRequestLogger())
+    val wsreq = WSUtil.url(url)
       .withAuth(client_id, secret, WSAuthScheme.BASIC)
     Logger.info(s"request to ${wsreq.url}")
 

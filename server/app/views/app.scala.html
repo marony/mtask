@@ -11,5 +11,16 @@
             assets = name => routes.Assets.versioned(name).toString,
             resourceExists = name => getClass.getResource(s"/public/$name") != null
         )
+        <a href="/td_get_tasks"><button type="button" class="btn btn-primary">タスク取得(テスト用)</button></a>
     </div>
+    <script>
+        window.onload = function(){
+            // 10分おき
+            setInterval("gettask()", 1000 * 60 * 10);
+        }
+
+        function gettask() {
+            window.location.href = '/td_get_tasks';
+        }
+    </script>
 }
