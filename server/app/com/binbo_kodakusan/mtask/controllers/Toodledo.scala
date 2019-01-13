@@ -51,6 +51,9 @@ class Toodledo @Inject()
   def getTasks() = Action { implicit request =>
     Logger.info(s"Toodledo::getTasks called")
 
+    // TODO: 1000件以上だったら繰り返し呼び出し
+    // TODO: アクセストークンが切れてたらリフレッシュ
+
     val url = config.get[String]("toodledo.get_task.url")
     val token = request.session.get(Constants.SessionName.TD_TOKEN).get
 
