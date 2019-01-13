@@ -9,7 +9,7 @@ import play.api.libs.ws._
 import com.binbo_kodakusan.mtask.Constants
 import play.api.libs.ws.ahc.AhcCurlRequestLogger
 import play.api.{Configuration, Logger}
-import util.WSUtil
+import util.{SSUtil, WSUtil}
 
 import scala.util.{Failure, Success, Try}
 
@@ -34,13 +34,16 @@ class Toodledo @Inject()
     val scope = config.get[String]("toodledo.authorize.scope")
     val device = request.headers("User-Agent")
 
+    // stateをセッションに保存
+    val session = SSUtil.add(request.session,
+      Constants.SessionName.TD_STATE -> state)
     Redirect(url, Map(
       "response_type" -> Seq("code"),
       "client_id" -> Seq(client_id),
       "state" -> Seq(state),
       "scope" -> Seq(scope),
       "device" -> Seq(device)
-    )).withSession(Constants.SessionName.TD_STATE -> state)
+    )).withSession(session)
   }
 
   /**
@@ -97,11 +100,14 @@ class Toodledo @Inject()
       // codeからアクセストークンを取得
       Toodledo.getAccessToken(code).map { case (token, refresh_token, expires_in) =>
         val session =
-          (request.session - Constants.SessionName.TD_STATE ) +
-          (Constants.SessionName.TD_TOKEN -> token) +
-          (Constants.SessionName.TD_REFRESH_TOKEN -> refresh_token) +
-          (Constants.SessionName.TD_EXPIRES_IN -> expires_in.toString) +
-          (Constants.SessionName.TD_AT_TOKEN_TOOK -> System.currentTimeMillis.toString)
+          SSUtil.add(
+            // stateをセッションから削除
+            SSUtil.remove(request.session, Constants.SessionName.TD_STATE),
+            // セッションに色々設定
+            Constants.SessionName.TD_TOKEN -> token,
+            Constants.SessionName.TD_REFRESH_TOKEN -> refresh_token,
+            Constants.SessionName.TD_EXPIRES_IN -> expires_in.toString,
+            Constants.SessionName.TD_AT_TOKEN_TOOK -> System.currentTimeMillis.toString)
         Redirect(routes.Application.app)
           .withSession(session)
       }
