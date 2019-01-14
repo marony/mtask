@@ -189,7 +189,7 @@ object Toodledo {
       val token_type = (response.json \ "token_type").as[String]
       val scope = (response.json \ "scope").as[String]
       val refresh_token = (response.json \ "refresh_token").as[String]
-      val at_token_took = request.session.get(Constants.SessionName.TD_REFRESH_TOKEN) match {
+      val at_token_took = request.session.get(Constants.SessionName.TD_AT_TOKEN_TOOK) match {
         case Some(v) => v.toLong
         case None => System.currentTimeMillis
       }
