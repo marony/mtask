@@ -64,13 +64,14 @@ class Toodledo @Inject()
     Toodledo.getTasks(url, token, refresh_token, expires_in, at_token_took).map {
       case (tasks, token, refresh_token, expires_in, at_token_took) => {
         // TODO: 実装
+        Logger.info(tasks.toString)
         Redirect(routes.Application.app)
       }
     }.recover {
       case ex => {
         // responce at maintenance
         // {"errorCode":4,"errorDesc":"The API is offline for maintenance."}
-        Logger.error(s"ERROR1: $ex")
+        Logger.error(s"ERROR(Toodledo.getTasks): $ex")
         Redirect(routes.Application.index)
           .flashing("danger" -> ex.toString)
           .withNewSession
@@ -107,7 +108,7 @@ class Toodledo @Inject()
       }
     }}.recover {
       case ex => {
-        Logger.error(ex.toString)
+        Logger.error(s"ERROR(Toodledo.callback): $ex")
         // フラッシュでエラー内容表示
         Redirect(routes.Application.index)
           .flashing("danger" -> ex.toString)
@@ -188,7 +189,10 @@ object Toodledo {
       val token_type = (response.json \ "token_type").as[String]
       val scope = (response.json \ "scope").as[String]
       val refresh_token = (response.json \ "refresh_token").as[String]
-      val at_token_took = request.session.get(Constants.SessionName.TD_REFRESH_TOKEN).get.toLong
+      val at_token_took = request.session.get(Constants.SessionName.TD_REFRESH_TOKEN) match {
+        case Some(v) => v.toLong
+        case None => System.currentTimeMillis
+      }
       Logger.info(s"token = $token, expires_in = $expires_in, token_type = $token_type, scope = $scope, refresh_token = $refresh_token")
 
       Success((token, refresh_token, expires_in, at_token_took))
@@ -196,7 +200,7 @@ object Toodledo {
       case ex => {
         // responce at maintenance
         // {"errorCode":4,"errorDesc":"The API is offline for maintenance."}
-        Logger.error(s"ERROR1: $ex")
+        Logger.error(s"ERROR(Toodledo.getAccessToken): $ex")
         Failure(ex)
       }
     }
@@ -248,7 +252,7 @@ object Toodledo {
       case ex => {
         // responce at maintenance
         // {"errorCode":4,"errorDesc":"The API is offline for maintenance."}
-        Logger.error(s"ERROR1: $ex")
+        Logger.error(s"ERROR(refreshAccessToken): $ex")
         Failure(ex)
       }
     }
@@ -258,7 +262,7 @@ object Toodledo {
 
   def getTasks[T](url: String, token: String, refresh_token: String, expires_in: Int, at_token_took: Long)
                            (implicit config: Configuration, ws: WSClient, request: Request[T],
-                            ec: ExecutionContext): Try[(Option[List[td.Task]], String, String, Int, Long)] = {
+                            ec: ExecutionContext): Try[(Option[Seq[td.Task]], String, String, Int, Long)] = {
 
     // TODO: 1000件以上だったら繰り返し呼び出し
     // TODO: アクセストークンが切れてたらリフレッシュ
@@ -280,7 +284,12 @@ object Toodledo {
           // errorCodeが存在しないので正常
           // TODO: 実装
           // JSONをパースしてタスクを返す
-          Success((None, token, refresh_token, expires_in, at_token_took))
+          val num = (response.json \ 0 \ "num").as[Int]
+          val total = (response.json \ 0 \ "total").as[Int]
+          // TODO: num < totalならばstartを変えて再度呼び出し
+          val tasks = for (i <- 1 to num)
+            yield (response.json \ i).as[td.Task]
+          Success((Some(tasks), token, refresh_token, expires_in, at_token_took))
         }
         case JsDefined(v) => {
           // errorCodeが設定されているのでエラー
