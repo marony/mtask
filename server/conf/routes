@@ -5,9 +5,9 @@
 # Home page
 GET        /                             com.binbo_kodakusan.mtask.controllers.Application.index
 GET        /app                          com.binbo_kodakusan.mtask.controllers.Application.app
-GET        /td_authorize                 com.binbo_kodakusan.mtask.controllers.Toodledo.authorize
-GET        /td_get_tasks                 com.binbo_kodakusan.mtask.controllers.Toodledo.getTasks
-GET        /td_callback                  com.binbo_kodakusan.mtask.controllers.Toodledo.callback(code: String, state: String, error: Option[String])
+GET        /td_authorize                 com.binbo_kodakusan.mtask.controllers.ToodledoController.authorize
+GET        /td_get_tasks                 com.binbo_kodakusan.mtask.controllers.ToodledoController.getTasks
+GET        /td_callback                  com.binbo_kodakusan.mtask.controllers.ToodledoController.callback(code: String, state: String, error: Option[String])
 
 # Prefix must match `play.assets.urlPrefix`
 GET        /assets/*file                 controllers.Assets.at(file)

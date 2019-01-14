@@ -8,7 +8,7 @@ import play.api.test._
  * For more information, consult the wiki.
  */
 @RunWith(classOf[JUnitRunner])
-class ApplicationSpec() extends PlaySpecification {
+class HomeControllerSpec() extends PlaySpecification {
 
   "Application" should {
 

@@ -12,7 +12,7 @@ import scala.concurrent.{Await, ExecutionContext}
 import scala.util.{Failure, Success}
 
 @Singleton
-class Application @Inject()
+class HomeController @Inject()
   (config: Configuration, cc: ControllerComponents)
   (userDAO: UserDAO)
   (implicit ec: ExecutionContext, webJarsUtil: org.webjars.play.WebJarsUtil)

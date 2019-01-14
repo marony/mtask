@@ -9,14 +9,14 @@ import play.api.libs.ws._
 import com.binbo_kodakusan.mtask.Constants
 import play.api.libs.json.{JsDefined, JsUndefined}
 import play.api.{Configuration, Logger}
-import util.{LogUtil, SSUtil, WSUtil}
+import util.{LogUtil, SessionUtil, WSUtil}
 
 import scala.util.{Failure, Success, Try}
 import com.binbo_kodakusan.mtask.models._
-import play.api.i18n.{I18nSupport, Messages, MessagesApi, MessagesImpl}
+import play.api.i18n.{I18nSupport, Messages}
 
 @Singleton
-class Toodledo @Inject()
+class ToodledoController @Inject()
   (cc: ControllerComponents)
   (implicit ec: ExecutionContext, config: Configuration, ws: WSClient)
     extends AbstractController(cc)
@@ -38,7 +38,7 @@ class Toodledo @Inject()
     val device = request.headers("User-Agent")
 
     // stateをセッションに保存
-    val session = SSUtil.add(request.session,
+    val session = SessionUtil.add(request.session,
       Constants.SessionName.TD_STATE -> state)
     Redirect(url, Map(
       "response_type" -> Seq("code"),
@@ -58,27 +58,35 @@ class Toodledo @Inject()
     Logger.info(s"Toodledo::getTasks called")
 
     val url = config.get[String]("toodledo.get_task.url")
-    val token = request.session.get(Constants.SessionName.TD_TOKEN).get
-    val refresh_token = request.session.get(Constants.SessionName.TD_REFRESH_TOKEN).get
-    val expires_in = request.session.get(Constants.SessionName.TD_EXPIRES_IN).get.toInt
-    val at_token_took = request.session.get(Constants.SessionName.TD_AT_TOKEN_TOOK).get.toLong
-
-    Toodledo.getTasks(url, token, refresh_token, expires_in, at_token_took).map {
-      case (tasks, token, refresh_token, expires_in, at_token_took) => {
-        // TODO: 実装
-        Logger.info(tasks.toString)
-        Redirect(routes.Application.app)
-      }
-    }.recover {
-      case ex => {
-        // responce at maintenance
-        // {"errorCode":4,"errorDesc":"The API is offline for maintenance."}
+    val tdStateOp = SessionUtil.getTdSessionState(request.session)
+    tdStateOp match {
+      case Some(tdState) =>
+        ToodledoController.getTasks(url, tdState).map {
+          case (tasks, tdState2) => {
+            // TODO: タスク一覧表示
+            val session = SessionUtil.setTdSession(
+              request.session, tdState2)
+            Logger.info(tasks.toString)
+            Redirect(routes.Application.app)
+              .withSession(session)
+          }
+        }.recover {
+          case ex => {
+            // responce at maintenance
+            // {"errorCode":4,"errorDesc":"The API is offline for maintenance."}
+            LogUtil.errorEx(ex, "ERROR(Toodledo.getTasks)")
+            Redirect(routes.Application.index)
+              .flashing("danger" -> ex.toString)
+              .withNewSession
+          }
+        }.get
+      case None =>
+        val ex = new Exception(Messages("toodledo.not_login"))
         LogUtil.errorEx(ex, "ERROR(Toodledo.getTasks)")
         Redirect(routes.Application.index)
           .flashing("danger" -> ex.toString)
           .withNewSession
-      }
-    }.get
+    }
   }
 
   /**
@@ -93,18 +101,14 @@ class Toodledo @Inject()
   def callback(code: String, state: String, error: Option[String]) = Action { implicit request =>
     Logger.info(s"Toodledo::callback called: code = $code, state = $state, error = $error")
 
-    Toodledo.checkState(state, error).flatMap { case _ => {
+    ToodledoController.checkState(state, error).flatMap { case _ => {
       // codeからアクセストークンを取得
-      Toodledo.getAccessToken(code).map { case (token, refresh_token, expires_in, at_token_took) =>
-        val session =
-          SSUtil.add(
-            // stateをセッションから削除
-            SSUtil.remove(request.session, Constants.SessionName.TD_STATE),
-            // セッションに色々設定
-            Constants.SessionName.TD_TOKEN -> token,
-            Constants.SessionName.TD_REFRESH_TOKEN -> refresh_token,
-            Constants.SessionName.TD_EXPIRES_IN -> expires_in.toString,
-            Constants.SessionName.TD_AT_TOKEN_TOOK -> at_token_took.toString)
+      ToodledoController.getAccessToken(code).map { tdState =>
+        val session = SessionUtil.setTdSession(
+          // stateをセッションから削除
+          SessionUtil.remove(request.session, Constants.SessionName.TD_STATE),
+          // セッションに色々設定
+          tdState)
         Redirect(routes.Application.app)
           .withSession(session)
       }
@@ -120,7 +124,7 @@ class Toodledo @Inject()
   }
 }
 
-object Toodledo {
+object ToodledoController {
   /**
     * コールバックの内容をチェックしてエラーを返す
     *
@@ -148,7 +152,7 @@ object Toodledo {
         }
       }.getOrElse {
         // session is null
-        Failure(new Exception(Messages("toodledo.invalid_user")))
+        Failure(new Exception(Messages("toodledo.not_login")))
       }
     }
   }
@@ -166,7 +170,7 @@ object Toodledo {
     */
   def getAccessToken[T](code: String)
                        (implicit config: Configuration, ws: WSClient, request: Request[T],
-                        ec: ExecutionContext): Try[(String, String, Int, Long)] = {
+                        ec: ExecutionContext): Try[td.SessionState] = {
     val url = config.get[String]("toodledo.token.url")
     val client_id = config.get[String]("toodledo.client_id")
     val secret = config.get[String]("toodledo.secret")
@@ -195,7 +199,7 @@ object Toodledo {
       }
       Logger.info(s"token = $token, expires_in = $expires_in, token_type = $token_type, scope = $scope, refresh_token = $refresh_token")
 
-      Success((token, refresh_token, expires_in, at_token_took))
+      Success(td.SessionState(token, refresh_token, expires_in, at_token_took))
     }.recover {
       case ex => {
         // responce at maintenance
@@ -220,12 +224,11 @@ object Toodledo {
     */
   def refreshAccessToken[T]()
                            (implicit config: Configuration, ws: WSClient, request: Request[T],
-                            ec: ExecutionContext): Try[(String, String, Int, Long)] = {
+                            ec: ExecutionContext): Try[td.SessionState] = {
     val url = config.get[String]("toodledo.token.url")
     val client_id = config.get[String]("toodledo.client_id")
     val secret = config.get[String]("toodledo.secret")
     val refresh_token = request.session.get(Constants.SessionName.TD_REFRESH_TOKEN).get
-    val at_token_took = request.session.get(Constants.SessionName.TD_REFRESH_TOKEN).get.toLong
     val device = request.headers("User-Agent")
 
     val wsreq = WSUtil.url(url)
@@ -247,7 +250,7 @@ object Toodledo {
       val refresh_token = (response.json \ "refresh_token").as[String]
       Logger.info(s"token = $token, expires_in = $expires_in, token_type = $token_type, scope = $scope, refresh_token = $refresh_token")
 
-      Success((token, refresh_token, expires_in, System.currentTimeMillis))
+      Success(td.SessionState(token, refresh_token, expires_in, System.currentTimeMillis))
     }.recover {
       case ex => {
         // responce at maintenance
@@ -260,16 +263,16 @@ object Toodledo {
     f.value.get.get
   }
 
-  def getTasks[T](url: String, token: String, refresh_token: String, expires_in: Int, at_token_took: Long)
+  def getTasks[T](url: String, tdState: td.SessionState)
                            (implicit config: Configuration, ws: WSClient, request: Request[T],
-                            ec: ExecutionContext): Try[(Option[Seq[td.Task]], String, String, Int, Long)] = {
+                            ec: ExecutionContext): Try[(Option[Seq[td.Task]], td.SessionState)] = {
 
     // TODO: 1000件以上だったら繰り返し呼び出し
     // TODO: アクセストークンが切れてたらリフレッシュ
 
     val wsreq = WSUtil.url(url)
       .addQueryStringParameters(
-        "access_token" -> token,
+        "access_token" -> tdState.token,
         "start" -> "0",
         "num" -> "10", // TODO: 1000件以上取得できるように
         "fields" -> "folder,tag,star,priority,note"
@@ -285,11 +288,11 @@ object Toodledo {
           // TODO: 実装
           // JSONをパースしてタスクを返す
           val num = (response.json \ 0 \ "num").as[Int]
-          val total = (response.json \ 0 \ "total").as[Int]
+//          val total = (response.json \ 0 \ "total").as[Int]
           // TODO: num < totalならばstartを変えて再度呼び出し
           val tasks = for (i <- 1 to num)
             yield (response.json \ i).as[td.Task]
-          Success((Some(tasks), token, refresh_token, expires_in, at_token_took))
+          Success((Some(tasks), tdState))
         }
         case JsDefined(v) => {
           // errorCodeが設定されているのでエラー
@@ -299,8 +302,8 @@ object Toodledo {
             // {"errorCode":2,"errorDesc":"Unauthorized","errors":[{"status":"2","message":"Unauthorized"}]}
             // 2ならば認証エラーなのでアクセストークンを再要求
             // リフレッシュトークンからアクセストークンを取得して再起で自分を呼び出す
-            Toodledo.refreshAccessToken().flatMap { case (token, refresh_token, expires_in, at_token_took) =>
-                getTasks(url, token, refresh_token, expires_in, at_token_took)
+            ToodledoController.refreshAccessToken().flatMap { tdState =>
+                getTasks(url, tdState)
             }
           }
         }
