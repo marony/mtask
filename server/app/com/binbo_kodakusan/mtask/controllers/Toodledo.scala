@@ -9,7 +9,7 @@ import play.api.libs.ws._
 import com.binbo_kodakusan.mtask.Constants
 import play.api.libs.json.{JsDefined, JsUndefined}
 import play.api.{Configuration, Logger}
-import util.{SSUtil, WSUtil}
+import util.{LogUtil, SSUtil, WSUtil}
 
 import scala.util.{Failure, Success, Try}
 import com.binbo_kodakusan.mtask.models._
@@ -71,7 +71,7 @@ class Toodledo @Inject()
       case ex => {
         // responce at maintenance
         // {"errorCode":4,"errorDesc":"The API is offline for maintenance."}
-        Logger.error(s"ERROR(Toodledo.getTasks): $ex")
+        LogUtil.errorEx(ex, "ERROR(Toodledo.getTasks)")
         Redirect(routes.Application.index)
           .flashing("danger" -> ex.toString)
           .withNewSession
@@ -108,7 +108,7 @@ class Toodledo @Inject()
       }
     }}.recover {
       case ex => {
-        Logger.error(s"ERROR(Toodledo.callback): $ex")
+        LogUtil.errorEx(ex, "ERROR(Toodledo.callback)")
         // フラッシュでエラー内容表示
         Redirect(routes.Application.index)
           .flashing("danger" -> ex.toString)
@@ -200,7 +200,7 @@ object Toodledo {
       case ex => {
         // responce at maintenance
         // {"errorCode":4,"errorDesc":"The API is offline for maintenance."}
-        Logger.error(s"ERROR(Toodledo.getAccessToken): $ex")
+        LogUtil.errorEx(ex, "ERROR(Toodledo.getAccessToken)")
         Failure(ex)
       }
     }
@@ -252,7 +252,7 @@ object Toodledo {
       case ex => {
         // responce at maintenance
         // {"errorCode":4,"errorDesc":"The API is offline for maintenance."}
-        Logger.error(s"ERROR(refreshAccessToken): $ex")
+        LogUtil.errorEx(ex, "ERROR(refreshAccessToken)")
         Failure(ex)
       }
     }
@@ -271,7 +271,7 @@ object Toodledo {
       .addQueryStringParameters(
         "access_token" -> token,
         "start" -> "0",
-        "num" -> "1000",
+        "num" -> "10", // TODO: 1000件以上取得できるように
         "fields" -> "folder,tag,star,priority,note"
       )
     Logger.info(s"request to ${wsreq.url}")
@@ -293,8 +293,8 @@ object Toodledo {
         }
         case JsDefined(v) => {
           // errorCodeが設定されているのでエラー
-          if (v != 2) {
-            Failure(new Exception((response.json \ "errorDesc").as[String]))
+          if (v.as[Int] != 2) {
+            Failure(new Exception(v.toString + ": " + (response.json \ "errorDesc").as[String]))
           } else {
             // {"errorCode":2,"errorDesc":"Unauthorized","errors":[{"status":"2","message":"Unauthorized"}]}
             // 2ならば認証エラーなのでアクセストークンを再要求
