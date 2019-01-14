@@ -13,12 +13,14 @@ import util.{LogUtil, SSUtil, WSUtil}
 
 import scala.util.{Failure, Success, Try}
 import com.binbo_kodakusan.mtask.models._
+import play.api.i18n.{I18nSupport, Messages, MessagesApi, MessagesImpl}
 
 @Singleton
 class Toodledo @Inject()
   (cc: ControllerComponents)
   (implicit ec: ExecutionContext, config: Configuration, ws: WSClient)
-    extends AbstractController(cc) {
+    extends AbstractController(cc)
+    with I18nSupport {
 
   /**
     * Toodledoの認証
@@ -132,7 +134,7 @@ object Toodledo {
     * @return
     */
   def checkState[T](state: String, error: Option[String])
-                   (implicit request: Request[T]): Try[Unit] = {
+                   (implicit request: Request[T], messages: Messages): Try[Unit] = {
     error.map { e =>
       // Toodledoからエラーを返された
       // error is Some(e)
@@ -142,13 +144,11 @@ object Toodledo {
         if (myState == state) {
           Success(())
         } else {
-          // TODO: メッセージ定義
-          Failure(new Exception("invalid state"))
+          Failure(new Exception(Messages("toodledo.invalid_state")))
         }
       }.getOrElse {
         // session is null
-        // TODO: メッセージ定義
-        Failure(new Exception("invalid user"))
+        Failure(new Exception(Messages("toodledo.invalid_user")))
       }
     }
   }
