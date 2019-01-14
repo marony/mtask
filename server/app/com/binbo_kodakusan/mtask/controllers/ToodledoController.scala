@@ -59,7 +59,7 @@ class ToodledoController @Inject()
     * @param error
     * @return
     */
-  def callback(code: String, state: String, error: Option[String]) = Action { implicit request =>
+  def callback(code: String, state: String, error: Option[String]) = Action.async { implicit request =>
     Logger.info(s"Toodledo::callback called: code = $code, state = $state, error = $error")
 
     val url = config.get[String]("toodledo.token.url")
@@ -88,23 +88,17 @@ class ToodledoController @Inject()
         .withSession(session)
     }
     // Future[Result](EitherT.value)のエラー系ロジック
-    val f = et.value.map {
-      case Right(v) => v
-      case Left(v) =>
-        Logger.error(v.toString)
-        Redirect(routes.HomeController.index)
-          .flashing("danger" -> v.toString)
-          .withNewSession
-    }.recover {
-      case ex =>
-        LogUtil.errorEx(ex)
-        Redirect(routes.HomeController.index)
-          .flashing("danger" -> ex.toString)
-          .withNewSession
-    }
-    
-    Await.ready(f, Duration.Inf)
-    f.value.get.get
+    EitherTUtil.eitherT2Error(et, v => {
+      Logger.error(v.toString)
+      Redirect(routes.HomeController.index)
+        .flashing("danger" -> v.toString)
+        .withNewSession
+    }, ex => {
+      LogUtil.errorEx(ex)
+      Redirect(routes.HomeController.index)
+        .flashing("danger" -> ex.toString)
+        .withNewSession
+    })
   }
 
   /**

@@ -151,6 +151,18 @@ object Toodledo {
     }
   }
 
+  /**
+    * タスクを取得する
+    * 
+    * @param url
+    * @param start
+    * @param num
+    * @param tdState
+    * @param ws
+    * @param ec
+    * @tparam T
+    * @return
+    */
   def getTasks[T](url: String, start: Int, num: Int, tdState: td.SessionState)
                  (implicit ws: WSClient, ec: ExecutionContext)
     : EitherT[Future, AppError, (Some[Seq[td.Task]], Int, Int, td.SessionState)] = {
