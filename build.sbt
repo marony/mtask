@@ -21,6 +21,8 @@ lazy val server = (project in file("server")).settings(commonSettings).settings(
     "com.vmunier" %% "scalajs-scripts" % "1.1.2",
     "io.suzaku" %%% "diode" % diodeV,
 
+    "org.typelevel" %% "cats-core" % "1.5.0",
+
     "org.webjars" %% "webjars-play" % "2.6.3",
     "org.webjars" % "bootstrap" % "4.2.1",
 
