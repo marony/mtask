@@ -151,7 +151,7 @@ object Toodledo {
     }
   }
 
-  /**gtffffffffffffffffffffffffffffffffffffffffffffffffffm,
+  /**
     * タスクを取得する
     * この中でトークンの再取得やページングはしないので外側からやること
     *

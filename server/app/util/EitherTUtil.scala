@@ -17,13 +17,13 @@ object EitherTUtil {
     * @return
     */
   def eitherT2Error(et: EitherT[Future, AppError, Result],
-                    f1: AppError => Result, f2: Throwable => Result)
+                    leftF: AppError => Result, exceptionF: Throwable => Result)
                    (implicit ex: ExecutionContext): Future[Result] = {
     et.value.map {
       case Right(v) => v
-      case Left(v) => f1(v)
+      case Left(v) => leftF(v)
     }.recover {
-      case ex => f2(ex)
+      case ex => exceptionF(ex)
     }
   }
 }
