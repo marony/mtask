@@ -193,7 +193,13 @@ object Toodledo {
               Right((Some(tasks), num, total, tdState))
             case JsDefined(v) =>
               // errorCodeが設定されているのでエラー
-              Left(AppError.Json(response.json))
+              // ex) アクセストークンが切れている場合
+              // {"errorCode":2,"errorDesc":"Unauthorized","errors":[{"status":"2","message":"Unauthorized"}]}
+              if (v.as[Int] == 2) {
+                Left(AppError.TokenExpired(response.json))
+              } else {
+                Left(AppError.Json(response.json))
+              }
           }
         }
       }

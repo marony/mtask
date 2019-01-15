@@ -88,12 +88,12 @@ class ToodledoController @Inject()
         .withSession(session)
     }
     // Future[Result](EitherT.value)のエラー系ロジック
-    EitherTUtil.eitherT2Error(et, v => {
-      Logger.error(v.toString)
+    EitherTUtil.eitherT2Error(et, (left: AppError) => {
+      Logger.error(left.toString)
       Redirect(routes.HomeController.index)
-        .flashing("danger" -> v.toString)
+        .flashing("danger" -> left.toString)
         .withNewSession
-    }, ex => {
+    }, (ex: Throwable) => {
       LogUtil.errorEx(ex)
       Redirect(routes.HomeController.index)
         .flashing("danger" -> ex.toString)
@@ -103,11 +103,15 @@ class ToodledoController @Inject()
 
   /**
     * タスク一覧を取得する
+    * TODO: JSONを返却する
     *
     * @return
     */
   def getTasks() = Action.async { implicit request =>
     Logger.info(s"Toodledo::getTasks called")
+
+    // TODO: 1000件以上だったら繰り返し呼び出し
+    // TODO: アクセストークンが切れてたらリフレッシュ
 
     val url = config.get[String]("toodledo.get_task.url")
     val start = 0
@@ -132,14 +136,16 @@ class ToodledoController @Inject()
 
       Redirect(routes.HomeController.app)
         .withSession(session)
+//      Ok(routes.HomeController.app)
+//        .withSession(session)
     }
     // Future[Result](EitherT.value)のエラー系ロジック
-    EitherTUtil.eitherT2Error(et, v => {
-      Logger.error(v.toString)
+    EitherTUtil.eitherT2Error(et, (left: AppError) => {
+      Logger.error(left.toString)
       Redirect(routes.HomeController.index)
-        .flashing("danger" -> v.toString)
+        .flashing("danger" -> left.toString)
         .withNewSession
-    }, ex => {
+    }, (ex: Throwable) => {
       LogUtil.errorEx(ex)
       Redirect(routes.HomeController.index)
         .flashing("danger" -> ex.toString)
