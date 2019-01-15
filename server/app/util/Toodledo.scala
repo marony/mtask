@@ -110,7 +110,7 @@ object Toodledo {
     * @return
     */
   def refreshAccessToken[T](url: String, refreshToken: String, clientId: String,
-                            secret: String, device: String, atTokenTook: Option[Long])
+                            secret: String, device: String, atTokenTook: Long)
                            (implicit ws: WSClient, ec: ExecutionContext)
     : EitherT[Future, AppError, td.SessionState] = {
     try {
@@ -138,7 +138,9 @@ object Toodledo {
           Right(td.SessionState(token, refreshToken, expiresIn, System.currentTimeMillis))
         }.recover {
           case ex => {
-            // responce at maintenance
+            // ex) アクセストークンが切れている場合
+            // {"errorCode":2,"errorDesc":"Unauthorized","errors":[{"status":"2","message":"Unauthorized"}]}
+            // ex) メンテナンス中の場合
             // {"errorCode":4,"errorDesc":"The API is offline for maintenance."}
             LogUtil.errorEx(ex, "ERROR(refreshAccessToken)")
             Left(AppError.Exception(ex))
