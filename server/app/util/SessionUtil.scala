@@ -54,17 +54,23 @@ object SessionUtil {
   def setTdSession(session: Session, state: td.SessionState): Session = {
     add(session,
       Constants.SessionName.TD_TOKEN -> state.token,
-      Constants.SessionName.TD_REFRESH_TOKEN -> state.refresh_token,
-      Constants.SessionName.TD_EXPIRES_IN -> state.expires_in.toString,
-      Constants.SessionName.TD_AT_TOKEN_TOOK -> state.at_token_took.toString)
+      Constants.SessionName.TD_REFRESH_TOKEN -> state.refreshToken,
+      Constants.SessionName.TD_EXPIRES_IN -> state.expiresIn.toString,
+      Constants.SessionName.TD_AT_TOKEN_TOOK -> state.atTokenTook.toString)
   }
 
+  /**
+    * セッションからToodledoの情報を取得
+    *
+    * @param session
+    * @return
+    */
   def getTdSessionState(session: Session): Option[td.SessionState] = {
     for {
       token <- session.get(Constants.SessionName.TD_TOKEN)
-      refresh_token <- session.get(Constants.SessionName.TD_REFRESH_TOKEN)
-      expires_in <- session.get(Constants.SessionName.TD_EXPIRES_IN)
-      at_token_took <- session.get(Constants.SessionName.TD_AT_TOKEN_TOOK)
-    } yield td.SessionState(token, refresh_token, expires_in.toInt, at_token_took.toLong)
+      refreshToken <- session.get(Constants.SessionName.TD_REFRESH_TOKEN)
+      expiresIn <- session.get(Constants.SessionName.TD_EXPIRES_IN)
+      atTokenTook <- session.get(Constants.SessionName.TD_AT_TOKEN_TOOK)
+    } yield td.SessionState(token, refreshToken, expiresIn.toInt, atTokenTook.toLong)
   }
 }

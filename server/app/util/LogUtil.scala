@@ -5,6 +5,12 @@ import play.api.Logger
 object LogUtil {
   private val CrLf = System.getProperty("line.separator")
 
+  /**
+    * 例外オブジェクトをいい感じにログ出力する
+    *
+    * @param ex
+    * @param prefix
+    */
   def errorEx(ex: Throwable, prefix: String = ""): Unit = {
     val str = new StringBuilder(if (prefix == "") "" else prefix + ": ")
     str ++= ex.toString

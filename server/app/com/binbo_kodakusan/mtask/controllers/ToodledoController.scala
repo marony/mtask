@@ -3,8 +3,9 @@ package com.binbo_kodakusan.mtask.controllers
 import cats.data._
 import cats.implicits._
 import com.binbo_kodakusan.mtask.Constants
+import com.binbo_kodakusan.mtask.models.td
 import javax.inject._
-import play.api.i18n.I18nSupport
+import play.api.i18n.{I18nSupport, Messages}
 import play.api.libs.ws._
 import play.api.mvc._
 import play.api.{Configuration, Logger}
@@ -67,14 +68,13 @@ class ToodledoController @Inject()
     val secret = config.get[String]("toodledo.secret")
     val device = request.headers("User-Agent")
     val at_token_took = request.session.get(Constants.SessionName.TD_AT_TOKEN_TOOK).map(_.toLong)
-
     val oldStateOpt = EitherT[Future, AppError, String] {
       request.session.get(Constants.SessionName.TD_STATE)
-      match { case Some(v) => Future.successful(Right(v)) case None => Future.successful(Left(AppError.NoError())) }
+        match { case Some(v) => Future.successful(Right(v)) case None => Future.successful(Left(AppError.NoError())) }
     }
 
     // EitherT[Future, AppError, Result]の正常ロジック
-    val et = for {
+    val et: EitherT[Future, AppError, Result] = for {
       oldState <- oldStateOpt
       r1 <- Toodledo.checkState(oldState, state, error)
       tdState <- Toodledo.getAccessToken(url, code, client_id, secret, device, at_token_took)
@@ -106,12 +106,55 @@ class ToodledoController @Inject()
     *
     * @return
     */
-  def getTasks() = Action { implicit request =>
-    ???
-/*
+  def getTasks() = Action.async { implicit request =>
     Logger.info(s"Toodledo::getTasks called")
 
     val url = config.get[String]("toodledo.get_task.url")
+    val start = 0
+    val num = 10 // TODO: 1000件にする
+
+    val oldStateOpt = EitherT[Future, AppError, td.SessionState] {
+      SessionUtil.getTdSessionState(request.session)
+        match { case Some(v) => Future.successful(Right(v)) case None => Future.successful(Left(AppError.NoError())) }
+    }
+    val et: EitherT[Future, AppError, Result] = for {
+      tdState <- oldStateOpt
+      tasksAndState <- Toodledo.getTasks(url, start, num, tdState)
+    } yield {
+      val (Some(tasks), num2, total, tdState2) = tasksAndState
+      // TODO: タスクを返す
+      Logger.info(tasks.toString)
+
+      val session = SessionUtil.setTdSession(
+        request.session,
+        // セッションに色々設定
+        tdState2)
+
+      Redirect(routes.HomeController.app)
+        .withSession(session)
+    }
+    // Future[Result](EitherT.value)のエラー系ロジック
+    EitherTUtil.eitherT2Error(et, v => {
+      Logger.error(v.toString)
+      Redirect(routes.HomeController.index)
+        .flashing("danger" -> v.toString)
+        .withNewSession
+    }, ex => {
+      LogUtil.errorEx(ex)
+      Redirect(routes.HomeController.index)
+        .flashing("danger" -> ex.toString)
+        .withNewSession
+    })
+/*
+    }.getOrElse {
+      val ex = new Exception(Messages("toodledo.not_login"))
+      LogUtil.errorEx(ex, "ERROR(Toodledo.getTasks)")
+      Redirect(routes.HomeController.index)
+        .flashing("danger" -> ex.toString)
+        .withNewSession
+    }
+*/
+/*
     val tdStateOp = SessionUtil.getTdSessionState(request.session)
     tdStateOp match {
       case Some(tdState) =>

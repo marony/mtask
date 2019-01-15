@@ -55,14 +55,14 @@ object Toodledo {
     * @tparam T
     * @return
     */
-  def getAccessToken(url: String, code: String, client_id: String,
-                     secret: String, device: String, at_token_took: Option[Long])
+  def getAccessToken(url: String, code: String, clientId: String,
+                     secret: String, device: String, atTokenTook: Option[Long])
                     (implicit ex: ExecutionContext, ws: WSClient)
     : EitherT[Future, AppError, td.SessionState] = {
     try {
       Logger.info("START: Toodledo.getAccessToken")
       val wsreq = WSUtil.url(url)
-        .withAuth(client_id, secret, WSAuthScheme.BASIC)
+        .withAuth(clientId, secret, WSAuthScheme.BASIC)
       Logger.info(s"request to ${wsreq.url}")
 
       EitherT[Future, AppError, td.SessionState] {
@@ -75,17 +75,17 @@ object Toodledo {
 
           // レスポンスからアクセストークンを取得
           val token = (response.json \ "access_token").as[String]
-          val expires_in = (response.json \ "expires_in").as[Int]
-          val token_type = (response.json \ "token_type").as[String]
+          val expiresIn = (response.json \ "expires_in").as[Int]
+          val tokenType = (response.json \ "token_type").as[String]
           val scope = (response.json \ "scope").as[String]
-          val refresh_token = (response.json \ "refresh_token").as[String]
-          val at_token_took2 = at_token_took match {
+          val refreshToken = (response.json \ "refresh_token").as[String]
+          val atTokenTook2 = atTokenTook match {
             case Some(v) => v
             case None => System.currentTimeMillis
           }
-          Logger.info(s"token = $token, expires_in = $expires_in, token_type = $token_type, scope = $scope, refresh_token = $refresh_token, at_token_took: $at_token_took2")
+          Logger.info(s"token = $token, expires_in = $expiresIn, token_type = $tokenType, scope = $scope, refresh_token = $refreshToken, at_token_took: $atTokenTook2")
 
-          Right(td.SessionState(token, refresh_token, expires_in, at_token_took2))
+          Right(td.SessionState(token, refreshToken, expiresIn, atTokenTook2))
         }.recover {
           case ex => {
             LogUtil.errorEx(ex, "ERROR(getAccessToken)")
@@ -109,33 +109,33 @@ object Toodledo {
     * @tparam T
     * @return
     */
-  def refreshAccessToken[T](url: String, refresh_token: String, client_id: String,
-                            secret: String, device: String, at_token_took: Option[Long])
+  def refreshAccessToken[T](url: String, refreshToken: String, clientId: String,
+                            secret: String, device: String, atTokenTook: Option[Long])
                            (implicit ws: WSClient, ec: ExecutionContext)
     : EitherT[Future, AppError, td.SessionState] = {
     try {
       Logger.info("START: Toodledo.refreshAccessToken")
       val wsreq = WSUtil.url(url)
-        .withAuth(client_id, secret, WSAuthScheme.BASIC)
+        .withAuth(clientId, secret, WSAuthScheme.BASIC)
       Logger.info(s"request to ${wsreq.url}")
 
       EitherT[Future, AppError, td.SessionState] {
         wsreq.post(Map(
           "grant_type" -> "refresh_token",
-          "refresh_token" -> refresh_token,
+          "refresh_token" -> refreshToken,
           "device" -> device
         )).map { response =>
           Logger.info(response.body)
 
           // レスポンスからアクセストークンを取得
           val token = (response.json \ "access_token").as[String]
-          val expires_in = (response.json \ "expires_in").as[Int]
-          val token_type = (response.json \ "token_type").as[String]
+          val expiresIn = (response.json \ "expires_in").as[Int]
+          val tokenType = (response.json \ "token_type").as[String]
           val scope = (response.json \ "scope").as[String]
-          val refresh_token = (response.json \ "refresh_token").as[String]
-          Logger.info(s"token = $token, expires_in = $expires_in, token_type = $token_type, scope = $scope, refresh_token = $refresh_token")
+          val refreshToken = (response.json \ "refresh_token").as[String]
+          Logger.info(s"token = $token, expires_in = $expiresIn, token_type = $tokenType, scope = $scope, refresh_token = $refreshToken")
 
-          Right(td.SessionState(token, refresh_token, expires_in, System.currentTimeMillis))
+          Right(td.SessionState(token, refreshToken, expiresIn, System.currentTimeMillis))
         }.recover {
           case ex => {
             // responce at maintenance
@@ -151,9 +151,10 @@ object Toodledo {
     }
   }
 
-  /**
+  /**gtffffffffffffffffffffffffffffffffffffffffffffffffffm,
     * タスクを取得する
-    * 
+    * この中でトークンの再取得やページングはしないので外側からやること
+    *
     * @param url
     * @param start
     * @param num
