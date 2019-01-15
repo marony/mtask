@@ -4,8 +4,10 @@ import cats.data._
 import cats.implicits._
 import com.binbo_kodakusan.mtask.Constants
 import com.binbo_kodakusan.mtask.models.td
+import com.binbo_kodakusan.mtask.models.td.{SessionState, Task}
 import javax.inject._
 import play.api.i18n.{I18nSupport, Messages}
+import play.api.libs.json.JsValue
 import play.api.libs.ws._
 import play.api.mvc._
 import play.api.{Configuration, Logger}
@@ -102,148 +104,99 @@ class ToodledoController @Inject()
   }
 
   /**
+    * タスクを同期で取得して返却(同期じゃないと再帰呼び出しが難しかった…)
+    *
+    * 全件取得する処理とアクセストークン再取得も行う
+    *
+    * @param request
+    * @param start
+    * @param num
+    * @param count
+    * @tparam T
+    * @return
+    */
+  private[this] def getTasksInternal[T](request: Request[T],
+                                        start: Int, num: Int, count: Int)
+    : Either[AppError, (Seq[td.Task], Int, Int, td.SessionState)] = {
+
+    val url = config.get[String]("toodledo.get_task.url")
+    val oldStateOpt = EitherT[Future, AppError, td.SessionState] {
+      SessionUtil.getTdSessionState(request.session)
+      match { case Some(v) => Future.successful(Right(v)) case None => Future.successful(Left(AppError.NoError())) }
+    }
+    val et: EitherT[Future, AppError, (Seq[td.Task], Int, Int, td.SessionState)] = for {
+      tdState <- oldStateOpt
+      tasksAndState <- Toodledo.getTasks(url, start, num, tdState)
+    } yield {
+      val (Some(tasks), num2, total, tdState2) = tasksAndState
+      Logger.info(tasks.toString)
+      (tasks, num2, total, tdState2)
+    }
+    // 例外をAppErrorに変換
+    val f: Future[Either[AppError, (Seq[Task], Int, Int, td.SessionState)]] = et.value.recover {
+      case ex: Throwable =>
+        Left(AppError.Exception(ex))
+    }
+    Await.ready(f, Duration.Inf)
+    val r: Either[AppError, (Seq[Task], Int, Int, td.SessionState)] = f.value.get.get
+    r match {
+      case Right(r2: (Seq[td.Task], Int, Int, td.SessionState)) =>
+        val tasks = r2._1
+        val num2 = r2._2
+        val total = r2._3
+        val tdState = r2._4
+        if (count + num2 >= total) {
+          r
+        } else {
+          // 件数が足りなければ再取得する
+          val r3 = getTasksInternal(request, start + num, num, count + num2)
+          Right((tasks ++ r3.right.get._1, count + num2, total, r3.right.get._4))
+        }
+      case Left(e: AppError) =>
+        e match {
+          case AppError.TokenExpired(json: JsValue) =>
+            // TODO: アクセストークンを再取得する
+            Left(e)
+          case _ => Left(e)
+        }
+    }
+  }
+
+  /**
     * タスク一覧を取得する
     * TODO: JSONを返却する
     *
     * @return
     */
-  def getTasks() = Action.async { implicit request =>
+  def getTasks() = Action { implicit request =>
     Logger.info(s"Toodledo::getTasks called")
 
-    // TODO: 1000件以上だったら繰り返し呼び出し
-    // TODO: アクセストークンが切れてたらリフレッシュ
+    val num = 1000
+    val r: Either[AppError, (Seq[td.Task], Int, Int, td.SessionState)] = getTasksInternal(request, 0, num, 0)
 
-    val url = config.get[String]("toodledo.get_task.url")
-    val start = 0
-    val num = 10 // TODO: 1000件にする
+    r match {
+      case Right(r) =>
+        val tasks = r._1
+        val num = r._2
+        val total = r._3
+        val tdState = r._4
+        Logger.info(s"num = $num, total = $total, tasks = $tasks, tdState = $tdState")
 
-    val oldStateOpt = EitherT[Future, AppError, td.SessionState] {
-      SessionUtil.getTdSessionState(request.session)
-        match { case Some(v) => Future.successful(Right(v)) case None => Future.successful(Left(AppError.NoError())) }
-    }
-    val et: EitherT[Future, AppError, Result] = for {
-      tdState <- oldStateOpt
-      tasksAndState <- Toodledo.getTasks(url, start, num, tdState)
-    } yield {
-      val (Some(tasks), num2, total, tdState2) = tasksAndState
-      // TODO: タスクを返す
-      Logger.info(tasks.toString)
+        val session = SessionUtil.setTdSession(
+          request.session,
+          // セッションに色々設定
+          tdState)
 
-      val session = SessionUtil.setTdSession(
-        request.session,
-        // セッションに色々設定
-        tdState2)
-
-      Redirect(routes.HomeController.app)
-        .withSession(session)
-//      Ok(routes.HomeController.app)
-//        .withSession(session)
-    }
-    // Future[Result](EitherT.value)のエラー系ロジック
-    EitherTUtil.eitherT2Error(et, (left: AppError) => {
-      Logger.error(left.toString)
-      Redirect(routes.HomeController.index)
-        .flashing("danger" -> left.toString)
-        .withNewSession
-    }, (ex: Throwable) => {
-      LogUtil.errorEx(ex)
-      Redirect(routes.HomeController.index)
-        .flashing("danger" -> ex.toString)
-        .withNewSession
-    })
-/*
-    }.getOrElse {
-      val ex = new Exception(Messages("toodledo.not_login"))
-      LogUtil.errorEx(ex, "ERROR(Toodledo.getTasks)")
-      Redirect(routes.HomeController.index)
-        .flashing("danger" -> ex.toString)
-        .withNewSession
-    }
-*/
-/*
-    val tdStateOp = SessionUtil.getTdSessionState(request.session)
-    tdStateOp match {
-      case Some(tdState) =>
-        ToodledoController.getTasks(url, tdState).map {
-          case (tasks, tdState2) => {
-            // TODO: タスク一覧表示
-            val session = SessionUtil.setTdSession(
-              request.session, tdState2)
-            Logger.info(tasks.toString)
-            Redirect(routes.HomeController.app)
-              .withSession(session)
-          }
-        }.recover {
-          case ex => {
-            // responce at maintenance
-            // {"errorCode":4,"errorDesc":"The API is offline for maintenance."}
-            LogUtil.errorEx(ex, "ERROR(Toodledo.getTasks)")
-            Redirect(routes.HomeController.index)
-              .flashing("danger" -> ex.toString)
-              .withNewSession
-          }
-        }.get
-      case None =>
-        val ex = new Exception(Messages("toodledo.not_login"))
-        LogUtil.errorEx(ex, "ERROR(Toodledo.getTasks)")
+        Redirect(routes.HomeController.app)
+          .withSession(session)
+      case Left(e) =>
+        Logger.error(e.toString)
         Redirect(routes.HomeController.index)
-          .flashing("danger" -> ex.toString)
+          .flashing("danger" -> e.toString)
           .withNewSession
     }
-*/
   }
 }
 
 object ToodledoController {
-/*
-  def getTasks[T](url: String, start: Int, num: Int, tdState: td.SessionState)
-                 (implicit ws: WSClient, ec: ExecutionContext)
-  : EitherT[Future, AppError, (Some[Seq[td.Task]], td.SessionState)] = {
-
-    // TODO: 1000件以上だったら繰り返し呼び出し
-    // TODO: アクセストークンが切れてたらリフレッシュ
-
-    val wsreq = WSUtil.url(url)
-      .addQueryStringParameters(
-        "access_token" -> tdState.token,
-        "start" -> start.toString,
-        "num" -> num.toString,
-        "fields" -> "folder,tag,star,priority,note"
-      )
-    Logger.info(s"request to ${wsreq.url}")
-
-    val f = wsreq.get.map { response =>
-      Logger.info(response.body)
-
-      response.json \ "errorCode" match {
-        case JsUndefined() => {
-          // errorCodeが存在しないので正常
-          // TODO: 実装
-          // JSONをパースしてタスクを返す
-          val num = (response.json \ 0 \ "num").as[Int]
-          //          val total = (response.json \ 0 \ "total").as[Int]
-          // TODO: num < totalならばstartを変えて再度呼び出し
-          val tasks = for (i <- 1 to num)
-            yield (response.json \ i).as[td.Task]
-          Success((Some(tasks), tdState))
-        }
-        case JsDefined(v) => {
-          // errorCodeが設定されているのでエラー
-          if (v.as[Int] != 2) {
-            Failure(new Exception(v.toString + ": " + (response.json \ "errorDesc").as[String]))
-          } else {
-            // {"errorCode":2,"errorDesc":"Unauthorized","errors":[{"status":"2","message":"Unauthorized"}]}
-            // 2ならば認証エラーなのでアクセストークンを再要求
-            // リフレッシュトークンからアクセストークンを取得して再起で自分を呼び出す
-            ToodledoController.refreshAccessToken().flatMap { tdState =>
-              getTasks(url, tdState)
-            }
-          }
-        }
-      }
-    }
-    Await.ready(f, Duration.Inf)
-    f.value.get.get
-  }
-*/
 }

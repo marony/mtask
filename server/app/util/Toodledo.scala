@@ -195,6 +195,8 @@ object Toodledo {
               // errorCodeが設定されているのでエラー
               // ex) アクセストークンが切れている場合
               // {"errorCode":2,"errorDesc":"Unauthorized","errors":[{"status":"2","message":"Unauthorized"}]}
+              // ex) メンテナンス中の場合
+              // {"errorCode":4,"errorDesc":"The API is offline for maintenance."}
               if (v.as[Int] == 2) {
                 Left(AppError.TokenExpired(response.json))
               } else {

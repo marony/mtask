@@ -20,10 +20,13 @@ object EitherTUtil {
                     leftF: AppError => Result, exceptionF: Throwable => Result)
                    (implicit ex: ExecutionContext): Future[Result] = {
     et.value.map {
-      case Right(v) => v
-      case Left(v) => leftF(v)
+      // 正常
+      case Right(r: Result) => r
+      // ロジックでのエラー
+      case Left(e: AppError) => leftF(e)
     }.recover {
-      case ex => exceptionF(ex)
+      // 例外
+      case ex: Throwable => exceptionF(ex)
     }
   }
 }
