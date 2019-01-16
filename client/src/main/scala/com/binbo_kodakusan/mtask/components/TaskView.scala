@@ -1,10 +1,11 @@
-package com.binbo_kodakusan.mtask
+package com.binbo_kodakusan.mtask.components
 
-import japgolly.scalajs.react._
-import japgolly.scalajs.react.vdom.html_<^._
+import com.binbo_kodakusan.mtask.shared
+import japgolly.scalajs.react.vdom.html_<^.{<, VdomElement, ^}
+import japgolly.scalajs.react.{BackendScope, Callback, ReactEventFromInput, ReactKeyboardEvent, ScalaComponent}
 import org.scalajs.dom.ext.KeyCode
 
-object TodoView {
+object TaskView {
 
   case class Props(onToggle: Callback,
                    onDelete: Callback,

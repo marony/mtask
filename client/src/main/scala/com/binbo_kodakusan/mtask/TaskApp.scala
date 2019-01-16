@@ -1,6 +1,7 @@
 package com.binbo_kodakusan.mtask
 
 import boopickle.Default._
+import com.binbo_kodakusan.mtask.containers.TaskList
 import diode.dev.{Hooks, PersistStateIDB}
 import org.scalajs.dom
 
@@ -15,16 +16,16 @@ import scala.scalajs.js.typedarray.TypedArrayBufferOps._
 import scala.scalajs.js.typedarray._
 
 @JSExportTopLevel("TodoMVC")
-object TodoMVC extends js.JSApp {
+object TaskApp extends js.JSApp {
 
   val baseUrl = BaseUrl(dom.window.location.href.takeWhile(_ != '#'))
 
   val routerConfig: RouterConfig[Unit] = RouterConfigDsl[Unit].buildConfig { dsl =>
     import dsl._
 
-    val todoConnection = AppCircuit.connect(_.tasks)
+    val taskConnection = AppCircuit.connect(_.tasks)
 
-    val route = staticRoute("#/", ()) ~> renderR(router => todoConnection(p => TodoList(p, router)))
+    val route = staticRoute("#/", ()) ~> renderR(router => taskConnection(p => TaskList(p, router)))
 
     /* build a final RouterConfig with a default page */
     route.notFound(redirectToPage("")(Redirect.Replace))

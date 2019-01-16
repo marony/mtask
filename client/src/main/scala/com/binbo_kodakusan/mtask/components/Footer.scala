@@ -1,7 +1,7 @@
-package com.binbo_kodakusan.mtask
+package com.binbo_kodakusan.mtask.components
 
-import japgolly.scalajs.react._
-import japgolly.scalajs.react.vdom.html_<^._
+import japgolly.scalajs.react.vdom.html_<^.{<, ^}
+import japgolly.scalajs.react.{BackendScope, ScalaComponent}
 
 object Footer {
 

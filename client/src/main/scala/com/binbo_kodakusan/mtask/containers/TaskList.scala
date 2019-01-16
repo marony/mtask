@@ -1,13 +1,15 @@
-package com.binbo_kodakusan.mtask
+package com.binbo_kodakusan.mtask.containers
 
-import diode.react.ModelProxy
+import com.binbo_kodakusan.mtask._
+import com.binbo_kodakusan.mtask.components.{Footer, TaskView}
 import diode.Action
-import japgolly.scalajs.react._
-import japgolly.scalajs.react.extra.router._
-import japgolly.scalajs.react.vdom.html_<^._
+import diode.react.ModelProxy
+import japgolly.scalajs.react.extra.router.RouterCtl
+import japgolly.scalajs.react.vdom.html_<^.{<, VdomElement, ^}
+import japgolly.scalajs.react.{BackendScope, Callback, ReactEventFromInput, ReactKeyboardEventFromInput, ScalaComponent}
 import org.scalajs.dom.ext.KeyCode
 
-object TodoList {
+object TaskList {
 
   case class Props(proxy: ModelProxy[Tasks], ctl: RouterCtl[Unit])
 
@@ -31,6 +33,13 @@ object TodoList {
     val startEditing: Int => Callback =
       id => $.modState(_.copy(editing = Some(id)))
 
+    /**
+      * メインコンポーネント
+      *
+      * @param p
+      * @param s
+      * @return
+      */
     def render(p: Props, s: State) = {
       val proxy                        = p.proxy()
       val dispatch: Action => Callback = p.proxy.dispatchCB
@@ -39,7 +48,7 @@ object TodoList {
       val completedCount               = tasks.length - activeCount
 
       <.div(
-        <.h1("todos"),
+        <.h1("tasks"),
         <.header(
           ^.className := "header",
           <.input(
@@ -49,12 +58,21 @@ object TodoList {
             ^.autoFocus := true
           )
         ),
-        todoList(dispatch, s.editing, tasks, activeCount).when(tasks.nonEmpty),
+        taskList(dispatch, s.editing, tasks, activeCount).when(tasks.nonEmpty),
         footer(p, dispatch, activeCount, completedCount).when(tasks.nonEmpty)
       )
     }
 
-    def todoList(dispatch: Action => Callback, editing: Option[Int], todos: Seq[shared.Task], activeCount: Int) =
+    /**
+      * タスクリスト
+      *
+      * @param dispatch
+      * @param editing
+      * @param todos
+      * @param activeCount
+      * @return
+      */
+    def taskList(dispatch: Action => Callback, editing: Option[Int], todos: Seq[shared.Task], activeCount: Int) =
       <.section(
         ^.className := "main",
         <.input.checkbox(
@@ -68,7 +86,7 @@ object TodoList {
           ^.className := "todo-list",
           todos.toTagMod(
             task =>
-              TodoView(TodoView.Props(
+              TaskView(TaskView.Props(
                 onToggle = dispatch(ToggleCompleted(task.id)),
                 onDelete = dispatch(Delete(task.id)),
                 onStartEditing = startEditing(task.id),
