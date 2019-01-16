@@ -1,9 +1,10 @@
 package com.binbo_kodakusan.mtask.components
 
-import com.binbo_kodakusan.mtask.shared
-import japgolly.scalajs.react.vdom.html_<^.{<, VdomElement, ^}
-import japgolly.scalajs.react.{BackendScope, Callback, ReactEventFromInput, ReactKeyboardEvent, ScalaComponent}
+import japgolly.scalajs.react._
+import japgolly.scalajs.react.vdom.html_<^._
+
 import org.scalajs.dom.ext.KeyCode
+import com.binbo_kodakusan.mtask.shared
 
 object TaskView {
 

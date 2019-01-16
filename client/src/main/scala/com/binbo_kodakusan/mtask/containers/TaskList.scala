@@ -1,13 +1,15 @@
 package com.binbo_kodakusan.mtask.containers
 
+import diode.react.ModelProxy
+import diode.Action
+
+import japgolly.scalajs.react._
+import japgolly.scalajs.react.extra.router._
+import japgolly.scalajs.react.vdom.html_<^._
+import org.scalajs.dom.ext.KeyCode
+
 import com.binbo_kodakusan.mtask._
 import com.binbo_kodakusan.mtask.components.{Footer, TaskView}
-import diode.Action
-import diode.react.ModelProxy
-import japgolly.scalajs.react.extra.router.RouterCtl
-import japgolly.scalajs.react.vdom.html_<^.{<, VdomElement, ^}
-import japgolly.scalajs.react.{BackendScope, Callback, ReactEventFromInput, ReactKeyboardEventFromInput, ScalaComponent}
-import org.scalajs.dom.ext.KeyCode
 
 object TaskList {
 
