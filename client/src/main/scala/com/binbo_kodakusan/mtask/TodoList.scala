@@ -9,9 +9,9 @@ import org.scalajs.dom.ext.KeyCode
 
 object TodoList {
 
-  case class Props(proxy: ModelProxy[Todos], currentFilter: TodoFilter, ctl: RouterCtl[TodoFilter])
+  case class Props(proxy: ModelProxy[Tasks], ctl: RouterCtl[Unit])
 
-  case class State(editing: Option[TodoId])
+  case class State(editing: Option[Int])
 
   class Backend($ : BackendScope[Props, State]) {
     def mounted(props: Props) = Callback {}
@@ -19,7 +19,7 @@ object TodoList {
     def handleNewTodoKeyDown(dispatch: Action => Callback)(e: ReactKeyboardEventFromInput): Option[Callback] = {
       val title = e.target.value.trim
       if (e.nativeEvent.keyCode == KeyCode.Enter && title.nonEmpty) {
-        Some(Callback(e.target.value = "") >> dispatch(AddTodo(title)))
+        Some(Callback(e.target.value = "") >> dispatch(AddTask(title)))
       } else {
         None
       }
@@ -28,16 +28,15 @@ object TodoList {
     def editingDone(): Callback =
       $.modState(_.copy(editing = None))
 
-    val startEditing: TodoId => Callback =
+    val startEditing: Int => Callback =
       id => $.modState(_.copy(editing = Some(id)))
 
     def render(p: Props, s: State) = {
       val proxy                        = p.proxy()
       val dispatch: Action => Callback = p.proxy.dispatchCB
-      val todos                        = proxy.todoList
-      val filteredTodos                = todos filter p.currentFilter.accepts
-      val activeCount                  = todos count TodoFilter.Active.accepts
-      val completedCount               = todos.length - activeCount
+      val tasks                        = proxy.tasks
+      val activeCount                  = tasks count (t => t.id == 1)
+      val completedCount               = tasks.length - activeCount
 
       <.div(
         <.h1("todos"),
@@ -50,12 +49,12 @@ object TodoList {
             ^.autoFocus := true
           )
         ),
-        todoList(dispatch, s.editing, filteredTodos, activeCount).when(todos.nonEmpty),
-        footer(p, dispatch, p.currentFilter, activeCount, completedCount).when(todos.nonEmpty)
+        todoList(dispatch, s.editing, tasks, activeCount).when(tasks.nonEmpty),
+        footer(p, dispatch, activeCount, completedCount).when(tasks.nonEmpty)
       )
     }
 
-    def todoList(dispatch: Action => Callback, editing: Option[TodoId], todos: Seq[Todo], activeCount: Int) =
+    def todoList(dispatch: Action => Callback, editing: Option[Int], todos: Seq[shared.Task], activeCount: Int) =
       <.section(
         ^.className := "main",
         <.input.checkbox(
@@ -68,30 +67,25 @@ object TodoList {
         <.ul(
           ^.className := "todo-list",
           todos.toTagMod(
-            todo =>
+            task =>
               TodoView(TodoView.Props(
-                onToggle = dispatch(ToggleCompleted(todo.id)),
-                onDelete = dispatch(Delete(todo.id)),
-                onStartEditing = startEditing(todo.id),
-                onUpdateTitle = title => dispatch(Update(todo.id, title)) >> editingDone(),
+                onToggle = dispatch(ToggleCompleted(task.id)),
+                onDelete = dispatch(Delete(task.id)),
+                onStartEditing = startEditing(task.id),
+                onUpdateTitle = title => dispatch(Update(task.id, title)) >> editingDone(),
                 onCancelEditing = editingDone(),
-                todo = todo,
-                isEditing = editing.contains(todo.id)
+                task = task,
+                isEditing = editing.contains(task.id)
               )))
         )
       )
 
     def footer(p: Props,
                dispatch: Action => Callback,
-               currentFilter: TodoFilter,
                activeCount: Int,
                completedCount: Int): VdomElement =
       Footer(
         Footer.Props(
-          filterLink = p.ctl.link,
-          onSelectFilter = f => dispatch(SelectFilter(f)),
-          onClearCompleted = dispatch(ClearCompleted),
-          currentFilter = currentFilter,
           activeCount = activeCount,
           completedCount = completedCount
         ))
@@ -104,6 +98,6 @@ object TodoList {
     .componentDidMount(scope => scope.backend.mounted(scope.props))
     .build
 
-  def apply(proxy: ModelProxy[Todos], currentFilter: TodoFilter, ctl: RouterCtl[TodoFilter]) =
-    component(Props(proxy, currentFilter, ctl))
+  def apply(proxy: ModelProxy[Tasks], ctl: RouterCtl[Unit]) =
+    component(Props(proxy, ctl))
 }

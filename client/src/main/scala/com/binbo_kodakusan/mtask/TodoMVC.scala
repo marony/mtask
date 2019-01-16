@@ -19,20 +19,31 @@ object TodoMVC extends js.JSApp {
 
   val baseUrl = BaseUrl(dom.window.location.href.takeWhile(_ != '#'))
 
-  val routerConfig: RouterConfig[TodoFilter] = RouterConfigDsl[TodoFilter].buildConfig { dsl =>
+  val routerConfig: RouterConfig[Unit] = RouterConfigDsl[Unit].buildConfig { dsl =>
     import dsl._
 
-    val todoConnection = AppCircuit.connect(_.todos)
+    val todoConnection = AppCircuit.connect(_.tasks)
 
-    /* how the application renders the list given a filter */
-    def filterRoute(s: TodoFilter): Rule =
-      staticRoute("#/" + s.link, s) ~> renderR(router => todoConnection(p => TodoList(p, s, router)))
-
-    val filterRoutes: Rule = TodoFilter.values.map(filterRoute).reduce(_ | _)
+    val route = staticRoute("#/", ()) ~> renderR(router => todoConnection(p => TodoList(p, router)))
 
     /* build a final RouterConfig with a default page */
-    filterRoutes.notFound(redirectToPage(TodoFilter.All)(Redirect.Replace))
+    route.notFound(redirectToPage("")(Redirect.Replace))
   }
+
+  //  val routerConfig: RouterConfig[TodoFilter] = RouterConfigDsl[TodoFilter].buildConfig { dsl =>
+//    import dsl._
+//
+//    val todoConnection = AppCircuit.connect(_.tasks)
+//
+//    /* how the application renders the list given a filter */
+//    def filterRoute(s: TodoFilter): Rule =
+//      staticRoute("#/" + s.link, s) ~> renderR(router => todoConnection(p => TodoList(p, s, router)))
+//
+//    val filterRoutes: Rule = TodoFilter.values.map(filterRoute).reduce(_ | _)
+//
+//    /* build a final RouterConfig with a default page */
+//    filterRoutes.notFound(redirectToPage(TodoFilter.All)(Redirect.Replace))
+//  }
 
   /**
     * Function to pickle application model into a TypedArray
@@ -70,6 +81,6 @@ object TodoMVC extends js.JSApp {
     val router = Router(baseUrl, routerConfig.logToConsole)
 
     println("Render")
-    router().renderIntoDOM(dom.document.getElementById("hello").domAsHtml)
+    router().renderIntoDOM(dom.document.getElementById("app").domAsHtml)
   }
 }

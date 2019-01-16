@@ -11,7 +11,7 @@ object TodoView {
                    onStartEditing: Callback,
                    onUpdateTitle: String => Callback,
                    onCancelEditing: Callback,
-                   todo: Todo,
+                   task: shared.Task,
                    isEditing: Boolean)
 
   case class State(editText: String)
@@ -26,7 +26,7 @@ object TodoView {
           else p.onUpdateTitle(s.editText.trim))
 
     def resetText(p: Props): Callback =
-      $.modState(_.copy(editText = p.todo.title))
+      $.modState(_.copy(editText = p.task.title))
 
     def editFieldKeyDown(p: Props): ReactKeyboardEvent => Option[Callback] =
       e =>
@@ -42,18 +42,18 @@ object TodoView {
     def render(p: Props, s: State): VdomElement = {
       <.li(
         ^.classSet(
-          "completed" -> p.todo.isCompleted,
+          "completed" -> false/*p.task.isCompleted*/,
           "editing"   -> p.isEditing
         ),
         <.div(
           ^.className := "view",
           <.input.checkbox(
             ^.className := "toggle",
-            ^.checked := p.todo.isCompleted,
+            ^.checked := false/*p.task.isCompleted*/,
             ^.onChange --> p.onToggle
           ),
           <.label(
-            p.todo.title,
+            p.task.title,
             ^.onDoubleClick --> p.onStartEditing
           ),
           <.button(
@@ -74,10 +74,10 @@ object TodoView {
 
   val component = ScalaComponent
     .builder[Props]("CTodoItem")
-    .initialStateFromProps(p => State(p.todo.title))
+    .initialStateFromProps(p => State(p.task.title))
     .renderBackend[Backend]
     .build
 
   def apply(P: Props) =
-    component.withKey(P.todo.id.id.toString)(P)
+    component.withKey(P.task.id)(P)
 }

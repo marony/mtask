@@ -53,7 +53,9 @@ lazy val client = (project in file("client")).settings(commonSettings).settings(
     "io.suzaku" %%% "diode" % diodeV,
     "io.suzaku" %%% "diode-devtools" % diodeV,
     "io.suzaku" %%% "diode-react" % s"$diodeV.131",
-    "io.suzaku" %%% "boopickle" % "1.3.0"
+    "io.suzaku" %%% "boopickle" % "1.3.0",
+    "com.lihaoyi" %%% "upickle" % "0.7.1",
+    "com.typesafe.play" %%% "play-json" % "2.6.13",
   ),
   npmDependencies in Compile ++= Seq(
       "react" -> "16.5.1",
@@ -65,7 +67,12 @@ lazy val client = (project in file("client")).settings(commonSettings).settings(
 lazy val shared = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
   .in(file("shared"))
-  .settings(commonSettings)
+  .settings(commonSettings).settings(
+    libraryDependencies ++= Seq(
+      "com.typesafe.play" %% "play-json" % "2.6.13",
+      "com.lihaoyi" %% "upickle" % "0.7.1",
+    )
+)
 lazy val sharedJvm = shared.jvm
 lazy val sharedJs = shared.js
 

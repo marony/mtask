@@ -2,43 +2,77 @@ package com.binbo_kodakusan.mtask
 
 import diode._
 import diode.react.ReactConnector
+import org.scalajs.dom.ext.Ajax
+import org.scalajs.dom
+
+import scala.util.{Failure, Success}
+import scala.scalajs.concurrent.JSExecutionContext.Implicits.queue
+import upickle.default._
+
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
 /**
   * AppCircuit provides the actual instance of the `AppModel` and all the action
   * handlers we need. Everything else comes from the `Circuit`
   */
 object AppCircuit extends Circuit[AppModel] with ReactConnector[AppModel] {
-  // define initial value for the application model
-  def initialModel = AppModel(Todos(Seq()))
+  // アプリケーションモデルの初期データ
+  def initialModel = AppModel(Tasks(Seq()))
 
   override val actionHandler = composeHandlers(
-    new TodoHandler(zoomTo(_.todos.todoList))
+    // タスクにZoom
+    new TaskHandler(zoomTo(_.tasks.tasks))
+    // TODO: 他のデータを触るにはどうするの？
   )
 }
 
-class TodoHandler[M](modelRW: ModelRW[M, Seq[Todo]]) extends ActionHandler(modelRW) {
-
-  def updateOne(Id: TodoId)(f: Todo => Todo): Seq[Todo] =
+/**
+  * タスク用ハンドラ
+  *
+  * @param modelRW
+  * @tparam M
+  */
+class TaskHandler[M](modelRW: ModelRW[M, Seq[shared.Task]]) extends ActionHandler(modelRW) {
+  /**
+    * TODO: これはなに？
+    *
+    * @param Id
+    * @param f
+    * @return
+    */
+  def updateOne(Id: Int)(f: shared.Task => shared.Task): Seq[shared.Task] =
     value.map {
-      case found @ Todo(Id, _, _) => f(found)
-      case other                  => other
+      case found@shared.Task(Id, _) => f(found)
+      case other => other
     }
 
+  /**
+    * TODO: アクションを処理する
+    * @return
+    */
   override def handle = {
-    case InitTodos =>
+    case InitTodos => {
+      // TODO: 初期データをサーバから取得する
       println("Initializing todos")
-      updated(List(Todo(TodoId.random, "Test your code!", false)))
-    case AddTodo(title) =>
-      updated(value :+ Todo(TodoId.random, title, false))
-    case ToggleAll(checked) =>
-      updated(value.map(_.copy(isCompleted = checked)))
-    case ToggleCompleted(id) =>
-      updated(updateOne(id)(old => old.copy(isCompleted = !old.isCompleted)))
+      effectOnly(Effect(Ajax.get("http://localhost:9000/td_get_tasks").map { xhr =>
+        GetTasks(read[Seq[shared.Task]](xhr.responseText))
+      }))
+    }
+    case GetTasks(tasks) =>
+      updated(tasks)
+    case AddTask(title) =>
+      // TODO: 追加する
+      updated(value :+ shared.Task(1, title))
+//    case ToggleAll(checked) =>
+//      updated(value.map(_.copy(isCompleted = checked)))
+//    case ToggleCompleted(id) =>
+//      updated(updateOne(id)(old => old.copy(isCompleted = !old.isCompleted)))
     case Update(id, title) =>
+      // TODO: 更新する
       updated(updateOne(id)(_.copy(title = title)))
     case Delete(id) =>
+      // TODO: 削除する
       updated(value.filterNot(_.id == id))
-    case ClearCompleted =>
-      updated(value.filterNot(_.isCompleted))
   }
 }

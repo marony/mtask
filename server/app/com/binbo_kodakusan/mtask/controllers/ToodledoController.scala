@@ -6,7 +6,7 @@ import com.binbo_kodakusan.mtask.Constants
 import com.binbo_kodakusan.mtask.models.td
 import javax.inject._
 import play.api.i18n.{I18nSupport, Messages}
-import play.api.libs.json.JsValue
+import play.api.libs.json.{JsValue, Json}
 import play.api.libs.ws._
 import play.api.mvc._
 import play.api.{Configuration, Logger}
@@ -218,8 +218,9 @@ class ToodledoController @Inject()
           // セッションに色々設定
           tdState)
 
-        Redirect(routes.HomeController.app)
-          .withSession(session)
+        Ok(Json.toJson(tasks.map(t => t.toShared())))
+//        Redirect(routes.HomeController.app)
+//          .withSession(session)
       case Left(e) =>
         Logger.error(e.toString)
         Redirect(routes.HomeController.index)
