@@ -42,34 +42,21 @@ object TaskView {
       e => Callback { e.persist() } >> $.modState(_.copy(editText = e.target.value))
 
     def render(p: Props, s: State): VdomElement = {
-      <.li(
+      <.tr(
         ^.classSet(
           "completed" -> false/*p.task.isCompleted*/,
           "editing"   -> p.isEditing
         ),
-        <.div(
-          ^.className := "view",
-          <.input.checkbox(
-            ^.className := "toggle",
-            ^.checked := false/*p.task.isCompleted*/,
-            ^.onChange --> p.onToggle
-          ),
-          <.label(
-            p.task.title,
-            ^.onDoubleClick --> p.onStartEditing
-          ),
+        <.td(
+          p.task.title,
+          ^.onDoubleClick --> p.onStartEditing
+        ),
+        <.td(
           <.button(
             ^.className := "destroy",
-            ^.onClick --> p.onDelete
-          )
-        ),
-        <.input(
-          ^.className := "edit",
-          ^.onBlur --> editFieldSubmit(p),
-          ^.onChange ==> editFieldChanged,
-          ^.onKeyDown ==>? editFieldKeyDown(p),
-          ^.value := s.editText
-        )
+            ^.onClick --> p.onDelete,
+            "ボタン"
+          ))
       )
     }
   }

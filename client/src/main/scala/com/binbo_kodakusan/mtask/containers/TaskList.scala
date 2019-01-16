@@ -50,7 +50,7 @@ object TaskList {
       val completedCount               = tasks.length - activeCount
 
       <.div(
-        <.h1("tasks"),
+        <.h1("タスクリスト"),
         <.header(
           ^.className := "header",
           <.input(
@@ -84,19 +84,32 @@ object TaskList {
             dispatch(ToggleAll(e.target.checked))
           }
         ),
-        <.ul(
-          ^.className := "todo-list",
-          todos.toTagMod(
-            task =>
-              TaskView(TaskView.Props(
-                onToggle = dispatch(ToggleCompleted(task.id)),
-                onDelete = dispatch(Delete(task.id)),
-                onStartEditing = startEditing(task.id),
-                onUpdateTitle = title => dispatch(Update(task.id, title)) >> editingDone(),
-                onCancelEditing = editingDone(),
-                task = task,
-                isEditing = editing.contains(task.id)
-              )))
+        <.table(
+          ^.className := "table table-sm table-bordered table-striped table-hover",
+          <.thead(
+            ^.className := "thead-dark",
+            <.tr(
+              <.th(
+                ^.scope := "col",
+                "見出し1"),
+              <.th(
+                ^.scope := "col",
+                "見出し2"),
+            )
+          ),
+          <.tbody(
+            todos.toTagMod(
+              task =>
+                TaskView(TaskView.Props(
+                  onToggle = dispatch(ToggleCompleted(task.id)),
+                  onDelete = dispatch(Delete(task.id)),
+                  onStartEditing = startEditing(task.id),
+                  onUpdateTitle = title => dispatch(Update(task.id, title)) >> editingDone(),
+                  onCancelEditing = editingDone(),
+                  task = task,
+                  isEditing = editing.contains(task.id)
+                )))
+          )
         )
       )
 

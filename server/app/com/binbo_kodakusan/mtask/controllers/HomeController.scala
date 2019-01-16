@@ -1,7 +1,6 @@
 package com.binbo_kodakusan.mtask.controllers
 
 import com.binbo_kodakusan.mtask.dao.UserDAO
-import com.binbo_kodakusan.mtask.shared.SharedMessages
 import com.binbo_kodakusan.mtask.models.Tables
 import javax.inject._
 import play.api.{Configuration, Logger}
@@ -47,6 +46,6 @@ class HomeController @Inject()
       }
     }
 
-    Ok(views.html.app("タイトルだよ", SharedMessages.itWorks))
+    Ok(views.html.app("タイトルだよ", "Message"))
   }
 }
