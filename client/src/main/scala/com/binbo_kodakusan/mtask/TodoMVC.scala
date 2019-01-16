@@ -30,21 +30,6 @@ object TodoMVC extends js.JSApp {
     route.notFound(redirectToPage("")(Redirect.Replace))
   }
 
-  //  val routerConfig: RouterConfig[TodoFilter] = RouterConfigDsl[TodoFilter].buildConfig { dsl =>
-//    import dsl._
-//
-//    val todoConnection = AppCircuit.connect(_.tasks)
-//
-//    /* how the application renders the list given a filter */
-//    def filterRoute(s: TodoFilter): Rule =
-//      staticRoute("#/" + s.link, s) ~> renderR(router => todoConnection(p => TodoList(p, s, router)))
-//
-//    val filterRoutes: Rule = TodoFilter.values.map(filterRoute).reduce(_ | _)
-//
-//    /* build a final RouterConfig with a default page */
-//    filterRoutes.notFound(redirectToPage(TodoFilter.All)(Redirect.Replace))
-//  }
-
   /**
     * Function to pickle application model into a TypedArray
     *
