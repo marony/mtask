@@ -185,6 +185,7 @@ class ToodledoController @Inject()
             case AppError.TokenExpired(json: JsValue) =>
               // アクセストークンを再取得する
               refreshAccessTokenInternal(request)
+              // TODO: セッションを更新しないとダメじゃない？
               getTasksInternal(request, start, num, count, true)
             case _ => Left(e)
           }
