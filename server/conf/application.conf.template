@@ -20,4 +20,10 @@ toodledo {
   token {
     url = "https://api.toodledo.com/3/account/token.php"
   }
+  account_info {
+    url = "https://api.toodledo.com/3/account/get.php"
+  }
+  get_task {
+    url = "http://api.toodledo.com/3/tasks/get.php"
+  }
 }

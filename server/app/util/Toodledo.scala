@@ -154,6 +154,56 @@ object Toodledo {
   }
 
   /**
+    * アカウント情報を取得する
+    *
+    * @param url
+    * @param tdState
+    * @param ws
+    * @param ec
+    * @return
+    */
+  def getAccountInfo(url: String, tdState: td.SessionState)
+                    (implicit ws: WSClient, ec: ExecutionContext)
+    : EitherT[Future, AppError, (Some[td.AccountInfo], td.SessionState)] = {
+    try {
+      Logger.info("START: Toodledo.getAccountInfo")
+      val wsreq = WSUtil.url(url)
+        .addQueryStringParameters(
+          "access_token" -> tdState.token
+        )
+      Logger.info(s"request to ${wsreq.url}")
+
+      EitherT[Future, AppError, (Some[td.AccountInfo], td.SessionState)] {
+        wsreq.get.map { response =>
+          Logger.info(response.body)
+
+          response.json \ "errorCode" match {
+            case JsUndefined() =>
+              // errorCodeが存在しないので正常
+              // JSONをパースしてタスクを返す
+              val accountInfo = response.json.as[td.AccountInfo]
+              Right((Some(accountInfo), tdState))
+            case JsDefined(v) =>
+              // errorCodeが設定されているのでエラー
+              // ex) アクセストークンが切れている場合
+              // {"errorCode":2,"errorDesc":"Unauthorized","errors":[{"status":"2","message":"Unauthorized"}]}
+              // ex) メンテナンス中の場合
+              // {"errorCode":4,"errorDesc":"The API is offline for maintenance."}
+              if (v.as[Int] == 2) {
+                Left(AppError.TokenExpired(response.json))
+              } else {
+                Left(AppError.Json(response.json))
+              }
+          }
+        }
+      }
+    }
+    finally {
+      Logger.info("END: Toodledo.getAccountInfo")
+    }
+  }
+
+  /**
     * タスクを取得する
     * この中でトークンの再取得やページングはしないので外側からやること
     *

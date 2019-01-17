@@ -6,6 +6,7 @@
 GET        /                             com.binbo_kodakusan.mtask.controllers.HomeController.index
 GET        /app                          com.binbo_kodakusan.mtask.controllers.HomeController.app
 GET        /td_authorize                 com.binbo_kodakusan.mtask.controllers.ToodledoController.authorize
+GET        /td_get_account               com.binbo_kodakusan.mtask.controllers.ToodledoController.getAccountInfo
 GET        /td_get_tasks                 com.binbo_kodakusan.mtask.controllers.ToodledoController.getTasks
 GET        /td_callback                  com.binbo_kodakusan.mtask.controllers.ToodledoController.callback(code: String, state: String, error: Option[String])
 

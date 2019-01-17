@@ -81,6 +81,10 @@ class ToodledoController @Inject()
       r1 <- Toodledo.checkState(oldState, state, error)
       tdState <- Toodledo.getAccessToken(url, code, clientId, secret, device, atTokenTook)
     } yield {
+      // アカウント情報の取得
+      getAccountInfoInternal(request, Some(tdState)).map { accountInfo =>
+        Logger.info(accountInfo.toString)
+      }
       val session = SessionUtil.setTdSession(
         // stateをセッションから削除
         SessionUtil.remove(request.session, Constants.SessionName.TD_STATE),
@@ -103,107 +107,50 @@ class ToodledoController @Inject()
     })
   }
 
-  private[this] def refreshAccessTokenInternal[T](request: Request[T]): Option[td.SessionState] = {
-    val url = config.get[String]("toodledo.token.url")
-    val clientId = config.get[String]("toodledo.client_id")
-    val secret = config.get[String]("toodledo.secret")
-    val device = request.headers("User-Agent")
-    val oldTdStateOpt = EitherT[Future, AppError, td.SessionState] {
-      SessionUtil.getTdSessionState(request.session)
-      match { case Some(v) => Future.successful(Right(v)) case None => Future.successful(Left(AppError.NoError())) }
-    }
-
-    val et: EitherT[Future, AppError, Option[td.SessionState]] = for {
-      oldTdState <- oldTdStateOpt
-      r1 <- Toodledo.refreshAccessToken(url, oldTdState.refreshToken, clientId, secret, device, oldTdState.atTokenTook)
-    } yield {
-      Some(r1)
-    }
-    val f: Future[Either[AppError, Option[td.SessionState]]] = et.value.recover {
-      case ex: Throwable => Right(None)
-    }
-    Await.ready(f, Duration.Inf)
-    f.value.get.get.right.get
-  }
-
   /**
-    * タスクを同期で取得して返却(同期じゃないと再帰呼び出しが難しかった…)
+    * アカウント情報を取得する
     *
-    * 全件取得する処理とアクセストークン再取得も行う
-    *
-    * @param request
-    * @param start
-    * @param num
-    * @param count
-    * @tparam T
     * @return
     */
-  private[this] def getTasksInternal[T](request: Request[T],
-                                        start: Int, num: Int, count: Int, retry: Boolean = false)
-    : Either[AppError, (Seq[td.Task], Int, Int, td.SessionState)] = {
+  def getAccountInfo() = Action { implicit request =>
+    Logger.info(s"Toodledo::getAccountInfo called")
 
-    val url = config.get[String]("toodledo.get_task.url")
-    val oldTdState = EitherT[Future, AppError, td.SessionState] {
-      SessionUtil.getTdSessionState(request.session)
-      match { case Some(v) => Future.successful(Right(v)) case None => Future.successful(Left(AppError.NoError())) }
-    }
+    // タスクを取得する
+    val tdState = SessionUtil.getTdSessionState(request.session)
+    val r: Either[AppError, (td.AccountInfo, td.SessionState)] = getAccountInfoInternal(request, tdState)
 
-    val et: EitherT[Future, AppError, (Seq[td.Task], Int, Int, td.SessionState)] = for {
-      tdState <- oldTdState
-      tasksAndState <- Toodledo.getTasks(url, start, num, tdState)
-    } yield {
-      val (Some(tasks), num2, total, tdState2) = tasksAndState
-      Logger.info(tasks.toString)
-      (tasks, num2, total, tdState2)
-    }
-    // 例外をAppErrorに変換
-    val f: Future[Either[AppError, (Seq[td.Task], Int, Int, td.SessionState)]] = et.value.recover {
-      case ex: Throwable =>
-        Left(AppError.Exception(ex))
-    }
-    Await.ready(f, Duration.Inf)
-    val r: Either[AppError, (Seq[td.Task], Int, Int, td.SessionState)] = f.value.get.get
     r match {
-      case Right(r2: (Seq[td.Task], Int, Int, td.SessionState)) =>
-        val tasks = r2._1
-        val num2 = r2._2
-        val total = r2._3
-        val tdState = r2._4
-        if (count + num2 >= total) {
-          r
-        } else {
-          // 件数が足りなければ再取得する
-          val r3 = getTasksInternal(request, start + num, num, count + num2)
-          Right((tasks ++ r3.right.get._1, count + num2, total, r3.right.get._4))
-        }
-      case Left(e: AppError) =>
-        if (retry) {
-          // 一度しかアクセストークンは取得しない
-          Left(e)
-        } else {
-          e match {
-            case AppError.TokenExpired(json: JsValue) =>
-              // アクセストークンを再取得する
-              refreshAccessTokenInternal(request)
-              // TODO: セッションを更新しないとダメじゃない？
-              getTasksInternal(request, start, num, count, true)
-            case _ => Left(e)
-          }
-        }
+      case Right(r) =>
+        val accountInfo = r._1
+        val tdState = r._2
+        Logger.info(s"accountInfo = $accountInfo, tdState = $tdState")
+
+        val session = SessionUtil.setTdSession(
+          request.session,
+          // セッションに色々設定
+          tdState)
+
+        Ok(Json.toJson(accountInfo.toShared))
+      case Left(e) =>
+        Logger.error(e.toString)
+        Redirect(routes.HomeController.index)
+          .flashing("danger" -> e.toString)
+          .withNewSession
     }
   }
 
   /**
     * タスク一覧を取得する
-    * TODO: JSONを返却する
     *
     * @return
     */
   def getTasks() = Action { implicit request =>
     Logger.info(s"Toodledo::getTasks called")
 
+    // タスクを取得する
     val num = 1000
-    val r: Either[AppError, (Seq[td.Task], Int, Int, td.SessionState)] = getTasksInternal(request, 0, num, 0)
+    val tdState = SessionUtil.getTdSessionState(request.session)
+    val r: Either[AppError, (Seq[td.Task], Int, Int, td.SessionState)] = getTasksInternal(request, tdState, 0, num, 0)
 
     r match {
       case Right(r) =>
@@ -219,13 +166,159 @@ class ToodledoController @Inject()
           tdState)
 
         Ok(Json.toJson(tasks.map(t => t.toShared())))
-//        Redirect(routes.HomeController.app)
-//          .withSession(session)
       case Left(e) =>
         Logger.error(e.toString)
         Redirect(routes.HomeController.index)
           .flashing("danger" -> e.toString)
           .withNewSession
+    }
+  }
+
+  /**
+    * アクセストークン再取得
+    *
+    * @param request
+    * @tparam T
+    * @return
+    */
+  private[this] def refreshAccessTokenInternal[T](request: Request[T], oldTdStateOpt: Option[td.SessionState]): Option[td.SessionState] = {
+    val url = config.get[String]("toodledo.token.url")
+    val clientId = config.get[String]("toodledo.client_id")
+    val secret = config.get[String]("toodledo.secret")
+    val device = request.headers("User-Agent")
+
+    if (oldTdStateOpt.isEmpty) {
+      None
+    } else {
+      val et: EitherT[Future, AppError, Option[td.SessionState]] = for {
+        r1 <- Toodledo.refreshAccessToken(url, oldTdStateOpt.get.refreshToken,
+          clientId, secret, device, oldTdStateOpt.get.atTokenTook)
+      } yield {
+        Some(r1)
+      }
+      val f: Future[Either[AppError, Option[td.SessionState]]] = et.value.recover {
+        case ex: Throwable => Right(None)
+      }
+      Await.ready(f, Duration.Inf)
+      f.value.get.get.right.get
+    }
+  }
+
+  /**
+    * アカウント情報を同期で取得して返却
+    * アクセストークン再取得も行う
+    *
+    * @param request
+    * @param oldTdState
+    * @param retry
+    * @tparam T
+    * @return
+    */
+  private[this] def getAccountInfoInternal[T](request: Request[T], oldTdStateOpt: Option[td.SessionState], retry: Boolean = false)
+    : Either[AppError, (td.AccountInfo, td.SessionState)] = {
+    val url = config.get[String]("toodledo.account_info.url")
+
+    if (oldTdStateOpt.isEmpty) {
+      Left(AppError.TokenExpired(Json.parse("{}")))
+    } else {
+      val et: EitherT[Future, AppError, (td.AccountInfo, td.SessionState)] = for {
+        accountInfoAndState <- Toodledo.getAccountInfo(url, oldTdStateOpt.get)
+      } yield {
+        val (Some(accountInfo), tdState2) = accountInfoAndState
+        Logger.info(accountInfo.toString)
+        (accountInfo, tdState2)
+      }
+      // 例外をAppErrorに変換
+      val f: Future[Either[AppError, (td.AccountInfo, td.SessionState)]] = et.value.recover {
+        case ex: Throwable =>
+          Left(AppError.Exception(ex))
+      }
+      Await.ready(f, Duration.Inf)
+      val r: Either[AppError, (td.AccountInfo, td.SessionState)] = f.value.get.get
+      r match {
+        case Right(r2: (td.AccountInfo, td.SessionState)) =>
+          r
+        case Left(e: AppError) =>
+          // 失敗したがアクセストークン切れならば再取得する
+          if (retry) {
+            // 一度しかアクセストークンは取得しない
+            Left(e)
+          } else {
+            e match {
+              case AppError.TokenExpired(json: JsValue) =>
+                // アクセストークンを再取得する
+                val tdState = refreshAccessTokenInternal(request, Some(r.right.get._2))
+                getAccountInfoInternal(request, tdState, true)
+              case _ => Left(e)
+            }
+          }
+      }
+    }
+  }
+
+  /**
+    * タスクを同期で取得して返却(同期じゃないと再帰呼び出しが難しかった…)
+    * 全件取得する処理とアクセストークン再取得も行う
+    *
+    * @param request
+    * @param start
+    * @param num
+    * @param count
+    * @tparam T
+    * @return
+    */
+  private[this] def getTasksInternal[T](request: Request[T], oldTdStateOpt: Option[td.SessionState],
+                                        start: Int, num: Int, count: Int, retry: Boolean = false)
+    : Either[AppError, (Seq[td.Task], Int, Int, td.SessionState)] = {
+
+    val url = config.get[String]("toodledo.get_task.url")
+
+    if (oldTdStateOpt.isEmpty) {
+      Left(AppError.TokenExpired(Json.parse("{}")))
+    } else {
+      val et: EitherT[Future, AppError, (Seq[td.Task], Int, Int, td.SessionState)] = for {
+        tasksAndState <- Toodledo.getTasks(url, start, num, oldTdStateOpt.get)
+      } yield {
+        val (Some(tasks), num2, total, tdState2) = tasksAndState
+        Logger.info(tasks.toString)
+        (tasks, num2, total, tdState2)
+      }
+      // 例外をAppErrorに変換
+      val f: Future[Either[AppError, (Seq[td.Task], Int, Int, td.SessionState)]] = et.value.recover {
+        case ex: Throwable =>
+          Left(AppError.Exception(ex))
+      }
+      Await.ready(f, Duration.Inf)
+      val r: Either[AppError, (Seq[td.Task], Int, Int, td.SessionState)] = f.value.get.get
+      r match {
+        case Right(r2: (Seq[td.Task], Int, Int, td.SessionState)) =>
+          // 成功したが、さらに取得できるならばする
+          val tasks = r2._1
+          val num2 = r2._2
+          val total = r2._3
+          val tdState = r2._4
+          if (count + num2 >= total) {
+            r
+          } else {
+            // 件数が足りなければ再取得する
+            val r3 = getTasksInternal(request, Some(tdState), start + num, num, count + num2)
+            Right((tasks ++ r3.right.get._1, count + num2, total, r3.right.get._4))
+          }
+        case Left(e: AppError) =>
+          // 失敗したがアクセストークン切れならば再取得する
+          if (retry) {
+            // 一度しかアクセストークンは取得しない
+            Left(e)
+          } else {
+            e match {
+              case AppError.TokenExpired(json: JsValue) =>
+                // アクセストークンを再取得する
+                val tdState = refreshAccessTokenInternal(request, Some(r.right.get._4))
+                getTasksInternal(request, tdState, start, num, count, true)
+              case _ => Left(e)
+            }
+          }
+      }
     }
   }
 }
