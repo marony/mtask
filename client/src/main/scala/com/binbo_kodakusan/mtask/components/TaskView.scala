@@ -13,7 +13,7 @@ object TaskView {
                    onStartEditing: Callback,
                    onUpdateTitle: String => Callback,
                    onCancelEditing: Callback,
-                   task: shared.Task,
+                   task: shared.STask,
                    isEditing: Boolean)
 
   case class State(editText: String)

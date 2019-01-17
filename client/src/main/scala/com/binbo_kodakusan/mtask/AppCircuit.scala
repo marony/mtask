@@ -18,7 +18,7 @@ import scala.concurrent.duration.Duration
   */
 object AppCircuit extends Circuit[AppModel] with ReactConnector[AppModel] {
   // アプリケーションモデルの初期データ
-  def initialModel = AppModel(Tasks(Seq()))
+  def initialModel = AppModel(RTasks(Seq()))
 
   override val actionHandler = composeHandlers(
     // タスクにZoom
@@ -33,7 +33,7 @@ object AppCircuit extends Circuit[AppModel] with ReactConnector[AppModel] {
   * @param modelRW
   * @tparam M
   */
-class TaskHandler[M](modelRW: ModelRW[M, Seq[shared.Task]]) extends ActionHandler(modelRW) {
+class TaskHandler[M](modelRW: ModelRW[M, Seq[shared.STask]]) extends ActionHandler(modelRW) {
   /**
     * TODO: これはなに？
     *
@@ -41,9 +41,9 @@ class TaskHandler[M](modelRW: ModelRW[M, Seq[shared.Task]]) extends ActionHandle
     * @param f
     * @return
     */
-  def updateOne(Id: Int)(f: shared.Task => shared.Task): Seq[shared.Task] =
+  def updateOne(Id: Int)(f: shared.STask => shared.STask): Seq[shared.STask] =
     value.map {
-      case found@shared.Task(Id, _) => f(found)
+      case found@shared.STask(Id, _) => f(found)
       case other => other
     }
 
@@ -56,14 +56,14 @@ class TaskHandler[M](modelRW: ModelRW[M, Seq[shared.Task]]) extends ActionHandle
       // TODO: 初期データをサーバから取得する
       println("Initializing todos")
       effectOnly(Effect(Ajax.get("http://localhost:9000/td_get_tasks").map { xhr =>
-        GetTasks(read[Seq[shared.Task]](xhr.responseText))
+        GetTasks(read[Seq[shared.STask]](xhr.responseText))
       }))
     }
     case GetTasks(tasks) =>
       updated(tasks)
     case AddTask(title) =>
       // TODO: 追加する
-      updated(value :+ shared.Task(1, title))
+      updated(value :+ shared.STask(1, title))
 //    case ToggleAll(checked) =>
 //      updated(value.map(_.copy(isCompleted = checked)))
 //    case ToggleCompleted(id) =>

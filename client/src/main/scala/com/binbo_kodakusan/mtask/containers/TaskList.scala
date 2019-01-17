@@ -13,7 +13,7 @@ import com.binbo_kodakusan.mtask.components.{Footer, TaskView}
 
 object TaskList {
 
-  case class Props(proxy: ModelProxy[Tasks], ctl: RouterCtl[Unit])
+  case class Props(proxy: ModelProxy[RTasks], ctl: RouterCtl[Unit])
 
   case class State(editing: Option[Int])
 
@@ -74,7 +74,7 @@ object TaskList {
       * @param activeCount
       * @return
       */
-    def taskList(dispatch: Action => Callback, editing: Option[Int], todos: Seq[shared.Task], activeCount: Int) =
+    def taskList(dispatch: Action => Callback, editing: Option[Int], todos: Seq[shared.STask], activeCount: Int) =
       <.section(
         ^.className := "main",
         <.input.checkbox(
@@ -131,6 +131,6 @@ object TaskList {
     .componentDidMount(scope => scope.backend.mounted(scope.props))
     .build
 
-  def apply(proxy: ModelProxy[Tasks], ctl: RouterCtl[Unit]) =
+  def apply(proxy: ModelProxy[RTasks], ctl: RouterCtl[Unit]) =
     component(Props(proxy, ctl))
 }

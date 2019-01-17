@@ -2,8 +2,8 @@ package util
 
 import cats.data._
 import cats.implicits._
-
-import com.binbo_kodakusan.mtask.models.td
+import com.binbo_kodakusan.mtask.models
+import com.binbo_kodakusan.mtask.models.{TdAccountInfo, TdSessionState, TdTask}
 import play.api.Logger
 import play.api.i18n.Messages
 import play.api.libs.json.{JsDefined, JsUndefined}
@@ -58,14 +58,14 @@ object Toodledo {
   def getAccessToken(url: String, code: String, clientId: String,
                      secret: String, device: String, atTokenTook: Option[Long])
                     (implicit ex: ExecutionContext, ws: WSClient)
-    : EitherT[Future, AppError, td.SessionState] = {
+    : EitherT[Future, AppError, TdSessionState] = {
     try {
       Logger.info("START: Toodledo.getAccessToken")
       val wsreq = WSUtil.url(url)
         .withAuth(clientId, secret, WSAuthScheme.BASIC)
       Logger.info(s"request to ${wsreq.url}")
 
-      EitherT[Future, AppError, td.SessionState] {
+      EitherT[Future, AppError, TdSessionState] {
         wsreq.post(Map(
           "grant_type" -> "authorization_code",
           "code" -> code,
@@ -85,7 +85,7 @@ object Toodledo {
           }
           Logger.info(s"token = $token, expires_in = $expiresIn, token_type = $tokenType, scope = $scope, refresh_token = $refreshToken, at_token_took: $atTokenTook2")
 
-          Right(td.SessionState(token, refreshToken, expiresIn, atTokenTook2))
+          Right(models.TdSessionState(token, refreshToken, expiresIn, atTokenTook2))
         }.recover {
           case ex => {
             LogUtil.errorEx(ex, "ERROR(getAccessToken)")
@@ -112,14 +112,14 @@ object Toodledo {
   def refreshAccessToken[T](url: String, refreshToken: String, clientId: String,
                             secret: String, device: String, atTokenTook: Long)
                            (implicit ws: WSClient, ec: ExecutionContext)
-    : EitherT[Future, AppError, td.SessionState] = {
+    : EitherT[Future, AppError, TdSessionState] = {
     try {
       Logger.info("START: Toodledo.refreshAccessToken")
       val wsreq = WSUtil.url(url)
         .withAuth(clientId, secret, WSAuthScheme.BASIC)
       Logger.info(s"request to ${wsreq.url}")
 
-      EitherT[Future, AppError, td.SessionState] {
+      EitherT[Future, AppError, TdSessionState] {
         wsreq.post(Map(
           "grant_type" -> "refresh_token",
           "refresh_token" -> refreshToken,
@@ -135,7 +135,7 @@ object Toodledo {
           val refreshToken = (response.json \ "refresh_token").as[String]
           Logger.info(s"token = $token, expires_in = $expiresIn, token_type = $tokenType, scope = $scope, refresh_token = $refreshToken")
 
-          Right(td.SessionState(token, refreshToken, expiresIn, System.currentTimeMillis))
+          Right(models.TdSessionState(token, refreshToken, expiresIn, System.currentTimeMillis))
         }.recover {
           case ex => {
             // ex) アクセストークンが切れている場合
@@ -162,9 +162,9 @@ object Toodledo {
     * @param ec
     * @return
     */
-  def getAccountInfo(url: String, tdState: td.SessionState)
+  def getAccountInfo(url: String, tdState: TdSessionState)
                     (implicit ws: WSClient, ec: ExecutionContext)
-    : EitherT[Future, AppError, (Some[td.AccountInfo], td.SessionState)] = {
+    : EitherT[Future, AppError, (Some[TdAccountInfo], TdSessionState)] = {
     try {
       Logger.info("START: Toodledo.getAccountInfo")
       val wsreq = WSUtil.url(url)
@@ -173,7 +173,7 @@ object Toodledo {
         )
       Logger.info(s"request to ${wsreq.url}")
 
-      EitherT[Future, AppError, (Some[td.AccountInfo], td.SessionState)] {
+      EitherT[Future, AppError, (Some[TdAccountInfo], TdSessionState)] {
         wsreq.get.map { response =>
           Logger.info(response.body)
 
@@ -181,7 +181,7 @@ object Toodledo {
             case JsUndefined() =>
               // errorCodeが存在しないので正常
               // JSONをパースしてタスクを返す
-              val accountInfo = response.json.as[td.AccountInfo]
+              val accountInfo = response.json.as[TdAccountInfo]
               Right((Some(accountInfo), tdState))
             case JsDefined(v) =>
               // errorCodeが設定されているのでエラー
@@ -216,9 +216,9 @@ object Toodledo {
     * @tparam T
     * @return
     */
-  def getTasks[T](url: String, start: Int, num: Int, tdState: td.SessionState)
+  def getTasks[T](url: String, start: Int, num: Int, tdState: TdSessionState)
                  (implicit ws: WSClient, ec: ExecutionContext)
-    : EitherT[Future, AppError, (Some[Seq[td.Task]], Int, Int, td.SessionState)] = {
+    : EitherT[Future, AppError, (Some[Seq[TdTask]], Int, Int, TdSessionState)] = {
     try {
       Logger.info("START: Toodledo.getTasks")
       val wsreq = WSUtil.url(url)
@@ -226,11 +226,12 @@ object Toodledo {
           "access_token" -> tdState.token,
           "start" -> start.toString,
           "num" -> num.toString,
-          "fields" -> "folder,tag,star,priority,note"
+          // default: id, title, modified, completed
+          "fields" -> "folder,context,goal,location,tag,startdate,duedate,duedatemod,starttime,duetime,remind,repeat,status,star,priority,length,timer,added,note,parent,children,order,meta,previous,attachment,shared,addedby,via,attachments"
         )
       Logger.info(s"request to ${wsreq.url}")
 
-      EitherT[Future, AppError, (Some[Seq[td.Task]], Int, Int, td.SessionState)] {
+      EitherT[Future, AppError, (Some[Seq[TdTask]], Int, Int, TdSessionState)] {
         wsreq.get.map { response =>
           Logger.info(response.body)
 
@@ -241,7 +242,7 @@ object Toodledo {
               val num = (response.json \ 0 \ "num").as[Int]
               val total = (response.json \ 0 \ "total").as[Int]
               val tasks = for (i <- 1 to num)
-                yield (response.json \ i).as[td.Task]
+                yield (response.json \ i).as[TdTask]
               Right((Some(tasks), num, total, tdState))
             case JsDefined(v) =>
               // errorCodeが設定されているのでエラー

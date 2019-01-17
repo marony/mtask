@@ -3,7 +3,7 @@ package com.binbo_kodakusan.mtask.controllers
 import cats.data._
 import cats.implicits._
 import com.binbo_kodakusan.mtask.Constants
-import com.binbo_kodakusan.mtask.models.td
+import com.binbo_kodakusan.mtask.models.{TdAccountInfo, TdSessionState, TdTask}
 import javax.inject._
 import play.api.i18n.{I18nSupport, Messages}
 import play.api.libs.json.{JsValue, Json}
@@ -84,7 +84,9 @@ class ToodledoController @Inject()
       // アカウント情報の取得
       getAccountInfoInternal(request, Some(tdState)).map { accountInfo =>
         Logger.info(accountInfo.toString)
+        // TODO: データベースに保存する
       }
+      // うまくいったらReactのアプリを表示
       val session = SessionUtil.setTdSession(
         // stateをセッションから削除
         SessionUtil.remove(request.session, Constants.SessionName.TD_STATE),
@@ -117,7 +119,7 @@ class ToodledoController @Inject()
 
     // タスクを取得する
     val tdState = SessionUtil.getTdSessionState(request.session)
-    val r: Either[AppError, (td.AccountInfo, td.SessionState)] = getAccountInfoInternal(request, tdState)
+    val r: Either[AppError, (TdAccountInfo, TdSessionState)] = getAccountInfoInternal(request, tdState)
 
     r match {
       case Right(r) =>
@@ -150,7 +152,7 @@ class ToodledoController @Inject()
     // タスクを取得する
     val num = 1000
     val tdState = SessionUtil.getTdSessionState(request.session)
-    val r: Either[AppError, (Seq[td.Task], Int, Int, td.SessionState)] = getTasksInternal(request, tdState, 0, num, 0)
+    val r: Either[AppError, (Seq[TdTask], Int, Int, TdSessionState)] = getTasksInternal(request, tdState, 0, num, 0)
 
     r match {
       case Right(r) =>
@@ -181,7 +183,7 @@ class ToodledoController @Inject()
     * @tparam T
     * @return
     */
-  private[this] def refreshAccessTokenInternal[T](request: Request[T], oldTdStateOpt: Option[td.SessionState]): Option[td.SessionState] = {
+  private[this] def refreshAccessTokenInternal[T](request: Request[T], oldTdStateOpt: Option[TdSessionState]): Option[TdSessionState] = {
     val url = config.get[String]("toodledo.token.url")
     val clientId = config.get[String]("toodledo.client_id")
     val secret = config.get[String]("toodledo.secret")
@@ -190,13 +192,13 @@ class ToodledoController @Inject()
     if (oldTdStateOpt.isEmpty) {
       None
     } else {
-      val et: EitherT[Future, AppError, Option[td.SessionState]] = for {
+      val et: EitherT[Future, AppError, Option[TdSessionState]] = for {
         r1 <- Toodledo.refreshAccessToken(url, oldTdStateOpt.get.refreshToken,
           clientId, secret, device, oldTdStateOpt.get.atTokenTook)
       } yield {
         Some(r1)
       }
-      val f: Future[Either[AppError, Option[td.SessionState]]] = et.value.recover {
+      val f: Future[Either[AppError, Option[TdSessionState]]] = et.value.recover {
         case ex: Throwable => Right(None)
       }
       Await.ready(f, Duration.Inf)
@@ -214,14 +216,14 @@ class ToodledoController @Inject()
     * @tparam T
     * @return
     */
-  private[this] def getAccountInfoInternal[T](request: Request[T], oldTdStateOpt: Option[td.SessionState], retry: Boolean = false)
-    : Either[AppError, (td.AccountInfo, td.SessionState)] = {
+  private[this] def getAccountInfoInternal[T](request: Request[T], oldTdStateOpt: Option[TdSessionState], retry: Boolean = false)
+    : Either[AppError, (TdAccountInfo, TdSessionState)] = {
     val url = config.get[String]("toodledo.account_info.url")
 
     if (oldTdStateOpt.isEmpty) {
       Left(AppError.TokenExpired(Json.parse("{}")))
     } else {
-      val et: EitherT[Future, AppError, (td.AccountInfo, td.SessionState)] = for {
+      val et: EitherT[Future, AppError, (TdAccountInfo, TdSessionState)] = for {
         accountInfoAndState <- Toodledo.getAccountInfo(url, oldTdStateOpt.get)
       } yield {
         val (Some(accountInfo), tdState2) = accountInfoAndState
@@ -229,14 +231,14 @@ class ToodledoController @Inject()
         (accountInfo, tdState2)
       }
       // 例外をAppErrorに変換
-      val f: Future[Either[AppError, (td.AccountInfo, td.SessionState)]] = et.value.recover {
+      val f: Future[Either[AppError, (TdAccountInfo, TdSessionState)]] = et.value.recover {
         case ex: Throwable =>
           Left(AppError.Exception(ex))
       }
       Await.ready(f, Duration.Inf)
-      val r: Either[AppError, (td.AccountInfo, td.SessionState)] = f.value.get.get
+      val r: Either[AppError, (TdAccountInfo, TdSessionState)] = f.value.get.get
       r match {
-        case Right(r2: (td.AccountInfo, td.SessionState)) =>
+        case Right(r2: (TdAccountInfo, TdSessionState)) =>
           r
         case Left(e: AppError) =>
           // 失敗したがアクセストークン切れならば再取得する
@@ -267,16 +269,16 @@ class ToodledoController @Inject()
     * @tparam T
     * @return
     */
-  private[this] def getTasksInternal[T](request: Request[T], oldTdStateOpt: Option[td.SessionState],
+  private[this] def getTasksInternal[T](request: Request[T], oldTdStateOpt: Option[TdSessionState],
                                         start: Int, num: Int, count: Int, retry: Boolean = false)
-    : Either[AppError, (Seq[td.Task], Int, Int, td.SessionState)] = {
+    : Either[AppError, (Seq[TdTask], Int, Int, TdSessionState)] = {
 
     val url = config.get[String]("toodledo.get_task.url")
 
     if (oldTdStateOpt.isEmpty) {
       Left(AppError.TokenExpired(Json.parse("{}")))
     } else {
-      val et: EitherT[Future, AppError, (Seq[td.Task], Int, Int, td.SessionState)] = for {
+      val et: EitherT[Future, AppError, (Seq[TdTask], Int, Int, TdSessionState)] = for {
         tasksAndState <- Toodledo.getTasks(url, start, num, oldTdStateOpt.get)
       } yield {
         val (Some(tasks), num2, total, tdState2) = tasksAndState
@@ -284,14 +286,14 @@ class ToodledoController @Inject()
         (tasks, num2, total, tdState2)
       }
       // 例外をAppErrorに変換
-      val f: Future[Either[AppError, (Seq[td.Task], Int, Int, td.SessionState)]] = et.value.recover {
+      val f: Future[Either[AppError, (Seq[TdTask], Int, Int, TdSessionState)]] = et.value.recover {
         case ex: Throwable =>
           Left(AppError.Exception(ex))
       }
       Await.ready(f, Duration.Inf)
-      val r: Either[AppError, (Seq[td.Task], Int, Int, td.SessionState)] = f.value.get.get
+      val r: Either[AppError, (Seq[TdTask], Int, Int, TdSessionState)] = f.value.get.get
       r match {
-        case Right(r2: (Seq[td.Task], Int, Int, td.SessionState)) =>
+        case Right(r2: (Seq[TdTask], Int, Int, TdSessionState)) =>
           // 成功したが、さらに取得できるならばする
           val tasks = r2._1
           val num2 = r2._2
