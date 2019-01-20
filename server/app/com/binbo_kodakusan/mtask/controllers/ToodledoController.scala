@@ -75,7 +75,7 @@ class ToodledoController @Inject()
         match { case Some(v) => Future.successful(Right(v)) case None => Future.successful(Left(AppError.NoError())) }
     }
 
-    // EitherT[Future, AppError, Result]の正常ロジック
+    // EitherT[Future, AppError, Result]の正常2tygロジック
     val et: EitherT[Future, AppError, Result] = for {
       oldState <- oldStateOpt
       r1 <- Toodledo.checkState(oldState, state, error)
@@ -133,6 +133,7 @@ class ToodledoController @Inject()
           tdState)
 
         Ok(Json.toJson(accountInfo.toShared))
+          .withSession(session)
       case Left(e) =>
         Logger.error(e.toString)
         Redirect(routes.HomeController.index)
@@ -168,6 +169,7 @@ class ToodledoController @Inject()
           tdState)
 
         Ok(Json.toJson(tasks.map(t => t.toShared())))
+          .withSession(session)
       case Left(e) =>
         Logger.error(e.toString)
         Redirect(routes.HomeController.index)
@@ -221,7 +223,7 @@ class ToodledoController @Inject()
     val url = config.get[String]("toodledo.account_info.url")
 
     if (oldTdStateOpt.isEmpty) {
-      Left(AppError.TokenExpired(Json.parse("{}")))
+      Left(AppError.Error("TODO: message"))
     } else {
       val et: EitherT[Future, AppError, (TdAccountInfo, TdSessionState)] = for {
         accountInfoAndState <- Toodledo.getAccountInfo(url, oldTdStateOpt.get)
@@ -247,9 +249,9 @@ class ToodledoController @Inject()
             Left(e)
           } else {
             e match {
-              case AppError.TokenExpired(json: JsValue) =>
+              case AppError.TokenExpired(json: JsValue, tdOldState) =>
                 // アクセストークンを再取得する
-                val tdState = refreshAccessTokenInternal(request, Some(r.right.get._2))
+                val tdState = refreshAccessTokenInternal(request, Some(tdOldState))
                 getAccountInfoInternal(request, tdState, true)
               case _ => Left(e)
             }
@@ -276,7 +278,7 @@ class ToodledoController @Inject()
     val url = config.get[String]("toodledo.get_task.url")
 
     if (oldTdStateOpt.isEmpty) {
-      Left(AppError.TokenExpired(Json.parse("{}")))
+      Left(AppError.Error("TODO: message"))
     } else {
       val et: EitherT[Future, AppError, (Seq[TdTask], Int, Int, TdSessionState)] = for {
         tasksAndState <- Toodledo.getTasks(url, start, num, oldTdStateOpt.get)
@@ -313,9 +315,9 @@ class ToodledoController @Inject()
             Left(e)
           } else {
             e match {
-              case AppError.TokenExpired(json: JsValue) =>
+              case AppError.TokenExpired(json: JsValue, tdOldState) =>
                 // アクセストークンを再取得する
-                val tdState = refreshAccessTokenInternal(request, Some(r.right.get._4))
+                val tdState = refreshAccessTokenInternal(request, Some(tdOldState))
                 getTasksInternal(request, tdState, start, num, count, true)
               case _ => Left(e)
             }

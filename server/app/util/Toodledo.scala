@@ -190,7 +190,7 @@ object Toodledo {
               // ex) メンテナンス中の場合
               // {"errorCode":4,"errorDesc":"The API is offline for maintenance."}
               if (v.as[Int] == 2) {
-                Left(AppError.TokenExpired(response.json))
+                Left(AppError.TokenExpired(response.json, tdState))
               } else {
                 Left(AppError.Json(response.json))
               }
@@ -251,7 +251,7 @@ object Toodledo {
               // ex) メンテナンス中の場合
               // {"errorCode":4,"errorDesc":"The API is offline for maintenance."}
               if (v.as[Int] == 2) {
-                Left(AppError.TokenExpired(response.json))
+                Left(AppError.TokenExpired(response.json, tdState))
               } else {
                 Left(AppError.Json(response.json))
               }

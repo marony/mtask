@@ -26,4 +26,7 @@ toodledo {
   get_task {
     url = "http://api.toodledo.com/3/tasks/get.php"
   }
+  deleted_task {
+    url = "http://api.toodledo.com/3/tasks/deleted.php&access_token=yourtoken&after=1234567890"
+  }
 }
