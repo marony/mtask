@@ -1,7 +1,7 @@
 package util
 
 import com.binbo_kodakusan.mtask.{Constants, models}
-import com.binbo_kodakusan.mtask.models.{TdSessionState}
+import com.binbo_kodakusan.mtask.models.{SessionState}
 import play.api.mvc.Session
 
 // SessionUtil
@@ -51,7 +51,7 @@ object SessionUtil {
     * @tparam T
     * @return
     */
-  def setTdSession(session: Session, state: TdSessionState): Session = {
+  def setTdSession(session: Session, state: SessionState): Session = {
     add(session,
       Constants.SessionName.TD_TOKEN -> state.token,
       Constants.SessionName.TD_REFRESH_TOKEN -> state.refreshToken,
@@ -65,12 +65,12 @@ object SessionUtil {
     * @param session
     * @return
     */
-  def getTdSessionState(session: Session): Option[TdSessionState] = {
+  def getTdSessionState(session: Session): Option[SessionState] = {
     for {
       token <- session.get(Constants.SessionName.TD_TOKEN)
       refreshToken <- session.get(Constants.SessionName.TD_REFRESH_TOKEN)
       expiresIn <- session.get(Constants.SessionName.TD_EXPIRES_IN)
       atTokenTook <- session.get(Constants.SessionName.TD_AT_TOKEN_TOOK)
-    } yield models.TdSessionState(token, refreshToken, expiresIn.toInt, atTokenTook.toLong)
+    } yield models.SessionState(token, refreshToken, expiresIn.toInt, atTokenTook.toLong)
   }
 }
