@@ -83,6 +83,7 @@ lazy val commonSettings = Seq(
 )
 
 // code generation task
+// server/target/scsla-2.12/src_managed/slick/Tables.scala
 lazy val slickCodeGen = TaskKey[Seq[File]]("gen-tables")
 lazy val slickCodeGenTask = Def task {
   val dir = sourceManaged.value
