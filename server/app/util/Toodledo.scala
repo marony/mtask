@@ -3,7 +3,7 @@ package util
 import cats.data._
 import cats.implicits._
 import com.binbo_kodakusan.mtask.models
-import com.binbo_kodakusan.mtask.models.{TdAccountInfo, TdSessionState, TdTask}
+import com.binbo_kodakusan.mtask.models.{TdAccountInfo, TdDeletedTask, TdSessionState, TdTask}
 import play.api.Logger
 import play.api.i18n.Messages
 import play.api.libs.json.{JsDefined, JsUndefined}
@@ -218,7 +218,7 @@ object Toodledo {
     */
   def getTasks[T](url: String, start: Int, num: Int, tdState: TdSessionState)
                  (implicit ws: WSClient, ec: ExecutionContext)
-    : EitherT[Future, AppError, (Some[Seq[TdTask]], Int, Int, TdSessionState)] = {
+    : EitherT[Future, AppError, (Seq[TdTask], Int, Int, TdSessionState)] = {
     try {
       Logger.info("START: Toodledo.getTasks")
       val wsreq = WSUtil.url(url)
@@ -231,7 +231,7 @@ object Toodledo {
         )
       Logger.info(s"request to ${wsreq.url}")
 
-      EitherT[Future, AppError, (Some[Seq[TdTask]], Int, Int, TdSessionState)] {
+      EitherT[Future, AppError, (Seq[TdTask], Int, Int, TdSessionState)] {
         wsreq.get.map { response =>
           Logger.info(response.body)
 
@@ -243,7 +243,7 @@ object Toodledo {
               val total = (response.json \ 0 \ "total").as[Int]
               val tasks = for (i <- 1 to num)
                 yield (response.json \ i).as[TdTask]
-              Right((Some(tasks), num, total, tdState))
+              Right((tasks, num, total, tdState))
             case JsDefined(v) =>
               // errorCodeが設定されているのでエラー
               // ex) アクセストークンが切れている場合
@@ -261,6 +261,65 @@ object Toodledo {
     }
     finally {
       Logger.info("END: Toodledo.getTasks")
+    }
+  }
+
+  /**
+    * 削除されたタスクを取得する
+    * この中でトークンの再取得やページングはしないので外側からやること
+    *
+    * @param url
+    * @param start
+    * @param num
+    * @param tdState
+    * @param ws
+    * @param ec
+    * @tparam T
+    * @return
+    */
+  def getDeletedTasks[T](url: String, afterOpt: Option[Int], tdState: TdSessionState)
+                 (implicit ws: WSClient, ec: ExecutionContext)
+  : EitherT[Future, AppError, (Seq[TdDeletedTask], TdSessionState)] = {
+    try {
+      Logger.info("START: Toodledo.getDeletedTasks")
+      var wsreq = WSUtil.url(url)
+        .addQueryStringParameters(
+          "access_token" -> tdState.token,
+        )
+      afterOpt.foreach { after =>
+        wsreq = wsreq.addQueryStringParameters("after" -> after.toString)
+      }
+      Logger.info(s"request to ${wsreq.url}")
+
+      EitherT[Future, AppError, (Seq[TdDeletedTask], TdSessionState)] {
+        wsreq.get.map { response =>
+          Logger.info(response.body)
+
+          response.json \ "errorCode" match {
+            case JsUndefined() =>
+              // errorCodeが存在しないので正常
+              // JSONをパースして削除されたタスクを返す
+              val num = (response.json \ 0 \ "num").as[Int]
+              val deletedTasks = for (i <- 1 to num)
+                yield (response.json \ i).as[TdDeletedTask]
+              Right((deletedTasks, tdState))
+            case JsDefined(v) =>
+              // errorCodeが設定されているのでエラー
+              // ex) アクセストークンが切れている場合
+              // {"errorCode":2,"errorDesc":"Unauthorized","errors":[{"status":"2","message":"Unauthorized"}]}
+              // ex) メンテナンス中の場合
+              // {"errorCode":4,"errorDesc":"The API is offline for maintenance."}
+              if (v.as[Int] == 2) {
+                Left(AppError.TokenExpired(response.json, tdState))
+              } else {
+                Left(AppError.Json(response.json))
+              }
+          }
+        }
+      }
+    }
+    finally {
+      Logger.info("END: Toodledo.getDeletedTasks")
     }
   }
 }

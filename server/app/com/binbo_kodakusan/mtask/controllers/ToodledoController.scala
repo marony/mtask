@@ -3,7 +3,7 @@ package com.binbo_kodakusan.mtask.controllers
 import cats.data._
 import cats.implicits._
 import com.binbo_kodakusan.mtask.Constants
-import com.binbo_kodakusan.mtask.models.{TdAccountInfo, TdSessionState, TdTask}
+import com.binbo_kodakusan.mtask.models.{TdAccountInfo, TdDeletedTask, TdSessionState, TdTask}
 import javax.inject._
 import play.api.i18n.{I18nSupport, Messages}
 import play.api.libs.json.{JsValue, Json}
@@ -144,6 +144,7 @@ class ToodledoController @Inject()
 
   /**
     * タスク一覧を取得する
+    * 削除済みのタスクは取り除く
     *
     * @return
     */
@@ -153,23 +154,29 @@ class ToodledoController @Inject()
     // タスクを取得する
     val num = 1000
     val tdState = SessionUtil.getTdSessionState(request.session)
-    val r: Either[AppError, (Seq[TdTask], Int, Int, TdSessionState)] = getTasksInternal(request, tdState, 0, num, 0)
 
-    r match {
-      case Right(r) =>
-        val tasks = r._1
-        val num = r._2
-        val total = r._3
-        val tdState = r._4
-        Logger.info(s"num = $num, total = $total, tasks = $tasks, tdState = $tdState")
+    val r1 = getTasksInternal(request, tdState, 0, num, 0)
+    r1 match {
+      case Right((tasks, num, total, tdState1)) =>
+        Logger.info(s"num = $num, total = $total, tasks = $tasks, tdState = $tdState1")
+        val r2 = getDeletedTasksInternal(request, Some(tdState1))
+        r2 match {
+          case Right((deletedTasks, tdState2)) =>
+            Logger.info(s"deletedTasks = $deletedTasks, tdState = $tdState2")
+            val session = SessionUtil.setTdSession(
+              request.session,
+              // セッションに色々設定
+              tdState2)
 
-        val session = SessionUtil.setTdSession(
-          request.session,
-          // セッションに色々設定
-          tdState)
-
-        Ok(Json.toJson(tasks.map(t => t.toShared())))
-          .withSession(session)
+            // 削除済みのタスクを取り除く
+            Ok(Json.toJson(tasks.filter(t => deletedTasks.forall(d => t.id != d.id)).map(t => t.toShared())))
+              .withSession(session)
+          case Left(e) =>
+            Logger.error(e.toString)
+            Redirect(routes.HomeController.index)
+              .flashing("danger" -> e.toString)
+              .withNewSession
+        }
       case Left(e) =>
         Logger.error(e.toString)
         Redirect(routes.HomeController.index)
@@ -283,7 +290,7 @@ class ToodledoController @Inject()
       val et: EitherT[Future, AppError, (Seq[TdTask], Int, Int, TdSessionState)] = for {
         tasksAndState <- Toodledo.getTasks(url, start, num, oldTdStateOpt.get)
       } yield {
-        val (Some(tasks), num2, total, tdState2) = tasksAndState
+        val (tasks, num2, total, tdState2) = tasksAndState
         Logger.info(tasks.toString)
         (tasks, num2, total, tdState2)
       }
@@ -319,6 +326,58 @@ class ToodledoController @Inject()
                 // アクセストークンを再取得する
                 val tdState = refreshAccessTokenInternal(request, Some(tdOldState))
                 getTasksInternal(request, tdState, start, num, count, true)
+              case _ => Left(e)
+            }
+          }
+      }
+    }
+  }
+
+  /**
+    * 削除されたタスクを取得する
+    * アクセストークン再取得も行う
+    *
+    * @param request
+    * @param oldTdStateOpt
+    * @param retry
+    * @tparam T
+    * @return
+    */
+  private[this] def getDeletedTasksInternal[T](request: Request[T], oldTdStateOpt: Option[TdSessionState], retry: Boolean = false)
+  : Either[AppError, (Seq[TdDeletedTask], TdSessionState)] = {
+    val url = config.get[String]("toodledo.deleted_task.url")
+
+    if (oldTdStateOpt.isEmpty) {
+      Left(AppError.Error("TODO: message"))
+    } else {
+      val et: EitherT[Future, AppError, (Seq[TdDeletedTask], TdSessionState)] = for {
+        accountInfoAndState <- Toodledo.getDeletedTasks(url, None, oldTdStateOpt.get)
+      } yield {
+        val (deletedTasks, tdState2) = accountInfoAndState
+        Logger.info(deletedTasks.toString)
+        (deletedTasks, tdState2)
+      }
+      // 例外をAppErrorに変換
+      val f: Future[Either[AppError, (Seq[TdDeletedTask], TdSessionState)]] = et.value.recover {
+        case ex: Throwable =>
+          Left(AppError.Exception(ex))
+      }
+      Await.ready(f, Duration.Inf)
+      val r: Either[AppError, (Seq[TdDeletedTask], TdSessionState)] = f.value.get.get
+      r match {
+        case Right(r2: (Seq[TdDeletedTask], TdSessionState)) =>
+          r
+        case Left(e: AppError) =>
+          // 失敗したがアクセストークン切れならば再取得する
+          if (retry) {
+            // 一度しかアクセストークンは取得しない
+            Left(e)
+          } else {
+            e match {
+              case AppError.TokenExpired(json: JsValue, tdOldState) =>
+                // アクセストークンを再取得する
+                val tdState = refreshAccessTokenInternal(request, Some(tdOldState))
+                getDeletedTasksInternal(request, tdState, true)
               case _ => Left(e)
             }
           }
