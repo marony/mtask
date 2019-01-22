@@ -11,11 +11,13 @@ trait Tables {
   val profile: slick.jdbc.JdbcProfile
   import profile.api._
   import slick.model.ForeignKeyAction
+  import slick.collection.heterogeneous._
+  import slick.collection.heterogeneous.syntax._
   // NOTE: GetResult mappers for plain SQL are only generated for tables where Slick knows how to map the types of all columns.
   import slick.jdbc.{GetResult => GR}
 
   /** DDL for all tables. Call .create to execute. */
-  lazy val schema: profile.SchemaDescription = PlayEvolutions.schema ++ Users.schema
+  lazy val schema: profile.SchemaDescription = PlayEvolutions.schema ++ Tasks.schema ++ Users.schema
   @deprecated("Use .schema instead of .ddl", "3.0")
   def ddl = schema
 
@@ -56,6 +58,76 @@ trait Tables {
   }
   /** Collection-like TableQuery object for table PlayEvolutions */
   lazy val PlayEvolutions = new TableQuery(tag => new PlayEvolutions(tag))
+
+  /** Row type of table Tasks */
+  type TasksRow = HCons[Long,HCons[String,HCons[String,HCons[Int,HCons[Int,HCons[Int,HCons[Int,HCons[Int,HCons[Int,HCons[Int,HCons[String,HCons[Int,HCons[Int,HCons[Int,HCons[String,HCons[Int,HCons[Int,HCons[Int,HCons[Int,HCons[String,HCons[Int,HCons[Int,HCons[Int,HCons[Option[String],HNil]]]]]]]]]]]]]]]]]]]]]]]]
+  /** Constructor for TasksRow providing default values if available in the database schema. */
+  def TasksRow(id: Long, taskId: String, title: String, lastSync: Int, modified: Int, completed: Int, folderId: Int, contextId: Int, goalId: Int, locationId: Int, tag: String, startDate: Int, dueDate: Int, remind: Int, repeat: String, status: Int, star: Int, priority: Int, added: Int, note: String, parentId: Int, childrenCount: Int, orderNo: Int, meta: Option[String] = None): TasksRow = {
+    id :: taskId :: title :: lastSync :: modified :: completed :: folderId :: contextId :: goalId :: locationId :: tag :: startDate :: dueDate :: remind :: repeat :: status :: star :: priority :: added :: note :: parentId :: childrenCount :: orderNo :: meta :: HNil
+  }
+  /** GetResult implicit for fetching TasksRow objects using plain SQL queries */
+  implicit def GetResultTasksRow(implicit e0: GR[Long], e1: GR[String], e2: GR[Int], e3: GR[Option[String]]): GR[TasksRow] = GR{
+    prs => import prs._
+      <<[Long] :: <<[String] :: <<[String] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[String] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[String] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[String] :: <<[Int] :: <<[Int] :: <<[Int] :: <<?[String] :: HNil
+  }
+  /** Table description of table tasks. Objects of this class serve as prototypes for rows in queries. */
+  class Tasks(_tableTag: Tag) extends profile.api.Table[TasksRow](_tableTag, "tasks") {
+    def * = id :: taskId :: title :: lastSync :: modified :: completed :: folderId :: contextId :: goalId :: locationId :: tag :: startDate :: dueDate :: remind :: repeat :: status :: star :: priority :: added :: note :: parentId :: childrenCount :: orderNo :: meta :: HNil
+
+    /** Database column id SqlType(bigserial), AutoInc, PrimaryKey */
+    val id: Rep[Long] = column[Long]("id", O.AutoInc, O.PrimaryKey)
+    /** Database column task_id SqlType(varchar), Length(255,true) */
+    val taskId: Rep[String] = column[String]("task_id", O.Length(255,varying=true))
+    /** Database column title SqlType(varchar), Length(255,true) */
+    val title: Rep[String] = column[String]("title", O.Length(255,varying=true))
+    /** Database column last_sync SqlType(int4) */
+    val lastSync: Rep[Int] = column[Int]("last_sync")
+    /** Database column modified SqlType(int4) */
+    val modified: Rep[Int] = column[Int]("modified")
+    /** Database column completed SqlType(int4) */
+    val completed: Rep[Int] = column[Int]("completed")
+    /** Database column folder_id SqlType(int4) */
+    val folderId: Rep[Int] = column[Int]("folder_id")
+    /** Database column context_id SqlType(int4) */
+    val contextId: Rep[Int] = column[Int]("context_id")
+    /** Database column goal_id SqlType(int4) */
+    val goalId: Rep[Int] = column[Int]("goal_id")
+    /** Database column location_id SqlType(int4) */
+    val locationId: Rep[Int] = column[Int]("location_id")
+    /** Database column tag SqlType(varchar), Length(255,true) */
+    val tag: Rep[String] = column[String]("tag", O.Length(255,varying=true))
+    /** Database column start_date SqlType(int4) */
+    val startDate: Rep[Int] = column[Int]("start_date")
+    /** Database column due_date SqlType(int4) */
+    val dueDate: Rep[Int] = column[Int]("due_date")
+    /** Database column remind SqlType(int4) */
+    val remind: Rep[Int] = column[Int]("remind")
+    /** Database column repeat SqlType(varchar), Length(255,true) */
+    val repeat: Rep[String] = column[String]("repeat", O.Length(255,varying=true))
+    /** Database column status SqlType(int4) */
+    val status: Rep[Int] = column[Int]("status")
+    /** Database column star SqlType(int4) */
+    val star: Rep[Int] = column[Int]("star")
+    /** Database column priority SqlType(int4) */
+    val priority: Rep[Int] = column[Int]("priority")
+    /** Database column added SqlType(int4) */
+    val added: Rep[Int] = column[Int]("added")
+    /** Database column note SqlType(text) */
+    val note: Rep[String] = column[String]("note")
+    /** Database column parent_id SqlType(int4) */
+    val parentId: Rep[Int] = column[Int]("parent_id")
+    /** Database column children_count SqlType(int4) */
+    val childrenCount: Rep[Int] = column[Int]("children_count")
+    /** Database column order_no SqlType(int4) */
+    val orderNo: Rep[Int] = column[Int]("order_no")
+    /** Database column meta SqlType(text), Default(None) */
+    val meta: Rep[Option[String]] = column[Option[String]]("meta", O.Default(None))
+
+    /** Uniqueness Index over (taskId) (database name ix_tasks_task_id) */
+    val index1 = index("ix_tasks_task_id", taskId :: HNil, unique=true)
+  }
+  /** Collection-like TableQuery object for table Tasks */
+  lazy val Tasks = new TableQuery(tag => new Tasks(tag))
 
   /** Entity class storing rows of table Users
     *  @param id Database column id SqlType(bigserial), AutoInc, PrimaryKey
@@ -121,6 +193,9 @@ trait Tables {
     val lastEditList: Rep[Int] = column[Int]("last_edit_list")
     /** Database column last_edit_outline SqlType(int4) */
     val lastEditOutline: Rep[Int] = column[Int]("last_edit_outline")
+
+    /** Uniqueness Index over (userId) (database name ix_users_user_id) */
+    val index1 = index("ix_users_user_id", userId, unique=true)
   }
   /** Collection-like TableQuery object for table Users */
   lazy val Users = new TableQuery(tag => new Users(tag))
