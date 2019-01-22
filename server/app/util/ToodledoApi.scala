@@ -290,10 +290,8 @@ class ToodledoApi @Inject()
       var wsreq = WSUtil.url(url)
         .addQueryStringParameters(
           "access_token" -> state.token,
+          "after" -> (if (afterOpt.isEmpty) "0" else afterOpt.get.toString),
         )
-      afterOpt.foreach { after =>
-        wsreq = wsreq.addQueryStringParameters("after" -> after.toString)
-      }
       Logger.info(s"request to ${wsreq.url}")
 
       EitherT[Future, AppError, (Seq[TdDeletedTask], SessionState)] {
