@@ -59,65 +59,68 @@ trait Tables {
 
   /** Entity class storing rows of table Users
     *  @param id Database column id SqlType(bigserial), AutoInc, PrimaryKey
-    *  @param userid Database column userid SqlType(varchar), Length(256,true)
-    *  @param email Database column email SqlType(varchar), Length(256,true)
-    *  @param accessToken Database column access_token SqlType(varchar), Length(256,true)
-    *  @param refreshToken Database column refresh_token SqlType(varchar), Length(256,true)
+    *  @param userId Database column user_id SqlType(varchar), Length(255,true)
+    *  @param alias Database column alias SqlType(varchar), Length(255,true)
+    *  @param email Database column email SqlType(varchar), Length(255,true)
+    *  @param accessToken Database column access_token SqlType(varchar), Length(255,true)
+    *  @param refreshToken Database column refresh_token SqlType(varchar), Length(255,true)
     *  @param lastSync Database column last_sync SqlType(int4)
-    *  @param lasteditFolder Database column lastedit_folder SqlType(int4)
-    *  @param lasteditContext Database column lastedit_context SqlType(int4)
-    *  @param lasteditGoal Database column lastedit_goal SqlType(int4)
-    *  @param lasteditLocation Database column lastedit_location SqlType(int4)
-    *  @param lasteditTask Database column lastedit_task SqlType(int4)
-    *  @param lastdeleteTask Database column lastdelete_task SqlType(int4)
-    *  @param lasteditNote Database column lastedit_note SqlType(int4)
-    *  @param lastdeleteNote Database column lastdelete_note SqlType(int4)
-    *  @param lasteditList Database column lastedit_list SqlType(int4)
-    *  @param lasteditOutline Database column lastedit_outline SqlType(int4) */
-  case class UsersRow(id: Long, userid: String, email: String, accessToken: String, refreshToken: String, lastSync: Int, lasteditFolder: Int, lasteditContext: Int, lasteditGoal: Int, lasteditLocation: Int, lasteditTask: Int, lastdeleteTask: Int, lasteditNote: Int, lastdeleteNote: Int, lasteditList: Int, lasteditOutline: Int)
+    *  @param lastEditFolder Database column last_edit_folder SqlType(int4)
+    *  @param lastEditContext Database column last_edit_context SqlType(int4)
+    *  @param lastEditGoal Database column last_edit_goal SqlType(int4)
+    *  @param lastEditLocation Database column last_edit_location SqlType(int4)
+    *  @param lastEditTask Database column last_edit_task SqlType(int4)
+    *  @param lastDeleteTask Database column last_delete_task SqlType(int4)
+    *  @param lastEditNote Database column last_edit_note SqlType(int4)
+    *  @param lastDeleteNote Database column last_delete_note SqlType(int4)
+    *  @param lastEditList Database column last_edit_list SqlType(int4)
+    *  @param lastEditOutline Database column last_edit_outline SqlType(int4) */
+  case class UsersRow(id: Long, userId: String, alias: String, email: String, accessToken: String, refreshToken: String, lastSync: Int, lastEditFolder: Int, lastEditContext: Int, lastEditGoal: Int, lastEditLocation: Int, lastEditTask: Int, lastDeleteTask: Int, lastEditNote: Int, lastDeleteNote: Int, lastEditList: Int, lastEditOutline: Int)
   /** GetResult implicit for fetching UsersRow objects using plain SQL queries */
   implicit def GetResultUsersRow(implicit e0: GR[Long], e1: GR[String], e2: GR[Int]): GR[UsersRow] = GR{
     prs => import prs._
-      UsersRow.tupled((<<[Long], <<[String], <<[String], <<[String], <<[String], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int]))
+      UsersRow.tupled((<<[Long], <<[String], <<[String], <<[String], <<[String], <<[String], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int]))
   }
   /** Table description of table users. Objects of this class serve as prototypes for rows in queries. */
   class Users(_tableTag: Tag) extends profile.api.Table[UsersRow](_tableTag, "users") {
-    def * = (id, userid, email, accessToken, refreshToken, lastSync, lasteditFolder, lasteditContext, lasteditGoal, lasteditLocation, lasteditTask, lastdeleteTask, lasteditNote, lastdeleteNote, lasteditList, lasteditOutline) <> (UsersRow.tupled, UsersRow.unapply)
+    def * = (id, userId, alias, email, accessToken, refreshToken, lastSync, lastEditFolder, lastEditContext, lastEditGoal, lastEditLocation, lastEditTask, lastDeleteTask, lastEditNote, lastDeleteNote, lastEditList, lastEditOutline) <> (UsersRow.tupled, UsersRow.unapply)
     /** Maps whole row to an option. Useful for outer joins. */
-    def ? = (Rep.Some(id), Rep.Some(userid), Rep.Some(email), Rep.Some(accessToken), Rep.Some(refreshToken), Rep.Some(lastSync), Rep.Some(lasteditFolder), Rep.Some(lasteditContext), Rep.Some(lasteditGoal), Rep.Some(lasteditLocation), Rep.Some(lasteditTask), Rep.Some(lastdeleteTask), Rep.Some(lasteditNote), Rep.Some(lastdeleteNote), Rep.Some(lasteditList), Rep.Some(lasteditOutline)).shaped.<>({r=>import r._; _1.map(_=> UsersRow.tupled((_1.get, _2.get, _3.get, _4.get, _5.get, _6.get, _7.get, _8.get, _9.get, _10.get, _11.get, _12.get, _13.get, _14.get, _15.get, _16.get)))}, (_:Any) =>  throw new Exception("Inserting into ? projection not supported."))
+    def ? = (Rep.Some(id), Rep.Some(userId), Rep.Some(alias), Rep.Some(email), Rep.Some(accessToken), Rep.Some(refreshToken), Rep.Some(lastSync), Rep.Some(lastEditFolder), Rep.Some(lastEditContext), Rep.Some(lastEditGoal), Rep.Some(lastEditLocation), Rep.Some(lastEditTask), Rep.Some(lastDeleteTask), Rep.Some(lastEditNote), Rep.Some(lastDeleteNote), Rep.Some(lastEditList), Rep.Some(lastEditOutline)).shaped.<>({r=>import r._; _1.map(_=> UsersRow.tupled((_1.get, _2.get, _3.get, _4.get, _5.get, _6.get, _7.get, _8.get, _9.get, _10.get, _11.get, _12.get, _13.get, _14.get, _15.get, _16.get, _17.get)))}, (_:Any) =>  throw new Exception("Inserting into ? projection not supported."))
 
     /** Database column id SqlType(bigserial), AutoInc, PrimaryKey */
     val id: Rep[Long] = column[Long]("id", O.AutoInc, O.PrimaryKey)
-    /** Database column userid SqlType(varchar), Length(256,true) */
-    val userid: Rep[String] = column[String]("userid", O.Length(256,varying=true))
-    /** Database column email SqlType(varchar), Length(256,true) */
-    val email: Rep[String] = column[String]("email", O.Length(256,varying=true))
-    /** Database column access_token SqlType(varchar), Length(256,true) */
-    val accessToken: Rep[String] = column[String]("access_token", O.Length(256,varying=true))
-    /** Database column refresh_token SqlType(varchar), Length(256,true) */
-    val refreshToken: Rep[String] = column[String]("refresh_token", O.Length(256,varying=true))
+    /** Database column user_id SqlType(varchar), Length(255,true) */
+    val userId: Rep[String] = column[String]("user_id", O.Length(255,varying=true))
+    /** Database column alias SqlType(varchar), Length(255,true) */
+    val alias: Rep[String] = column[String]("alias", O.Length(255,varying=true))
+    /** Database column email SqlType(varchar), Length(255,true) */
+    val email: Rep[String] = column[String]("email", O.Length(255,varying=true))
+    /** Database column access_token SqlType(varchar), Length(255,true) */
+    val accessToken: Rep[String] = column[String]("access_token", O.Length(255,varying=true))
+    /** Database column refresh_token SqlType(varchar), Length(255,true) */
+    val refreshToken: Rep[String] = column[String]("refresh_token", O.Length(255,varying=true))
     /** Database column last_sync SqlType(int4) */
     val lastSync: Rep[Int] = column[Int]("last_sync")
-    /** Database column lastedit_folder SqlType(int4) */
-    val lasteditFolder: Rep[Int] = column[Int]("lastedit_folder")
-    /** Database column lastedit_context SqlType(int4) */
-    val lasteditContext: Rep[Int] = column[Int]("lastedit_context")
-    /** Database column lastedit_goal SqlType(int4) */
-    val lasteditGoal: Rep[Int] = column[Int]("lastedit_goal")
-    /** Database column lastedit_location SqlType(int4) */
-    val lasteditLocation: Rep[Int] = column[Int]("lastedit_location")
-    /** Database column lastedit_task SqlType(int4) */
-    val lasteditTask: Rep[Int] = column[Int]("lastedit_task")
-    /** Database column lastdelete_task SqlType(int4) */
-    val lastdeleteTask: Rep[Int] = column[Int]("lastdelete_task")
-    /** Database column lastedit_note SqlType(int4) */
-    val lasteditNote: Rep[Int] = column[Int]("lastedit_note")
-    /** Database column lastdelete_note SqlType(int4) */
-    val lastdeleteNote: Rep[Int] = column[Int]("lastdelete_note")
-    /** Database column lastedit_list SqlType(int4) */
-    val lasteditList: Rep[Int] = column[Int]("lastedit_list")
-    /** Database column lastedit_outline SqlType(int4) */
-    val lasteditOutline: Rep[Int] = column[Int]("lastedit_outline")
+    /** Database column last_edit_folder SqlType(int4) */
+    val lastEditFolder: Rep[Int] = column[Int]("last_edit_folder")
+    /** Database column last_edit_context SqlType(int4) */
+    val lastEditContext: Rep[Int] = column[Int]("last_edit_context")
+    /** Database column last_edit_goal SqlType(int4) */
+    val lastEditGoal: Rep[Int] = column[Int]("last_edit_goal")
+    /** Database column last_edit_location SqlType(int4) */
+    val lastEditLocation: Rep[Int] = column[Int]("last_edit_location")
+    /** Database column last_edit_task SqlType(int4) */
+    val lastEditTask: Rep[Int] = column[Int]("last_edit_task")
+    /** Database column last_delete_task SqlType(int4) */
+    val lastDeleteTask: Rep[Int] = column[Int]("last_delete_task")
+    /** Database column last_edit_note SqlType(int4) */
+    val lastEditNote: Rep[Int] = column[Int]("last_edit_note")
+    /** Database column last_delete_note SqlType(int4) */
+    val lastDeleteNote: Rep[Int] = column[Int]("last_delete_note")
+    /** Database column last_edit_list SqlType(int4) */
+    val lastEditList: Rep[Int] = column[Int]("last_edit_list")
+    /** Database column last_edit_outline SqlType(int4) */
+    val lastEditOutline: Rep[Int] = column[Int]("last_edit_outline")
   }
   /** Collection-like TableQuery object for table Users */
   lazy val Users = new TableQuery(tag => new Users(tag))

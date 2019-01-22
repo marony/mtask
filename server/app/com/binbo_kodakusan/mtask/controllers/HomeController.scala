@@ -36,7 +36,7 @@ class HomeController @Inject()
     {
       val f = userDAO.all().map { (users: Seq[Tables.UsersRow]) =>
         users.map { (user: Tables.UsersRow) =>
-          user.id
+          user.alias
         }
       }
       Await.ready(f, Duration.Inf)
