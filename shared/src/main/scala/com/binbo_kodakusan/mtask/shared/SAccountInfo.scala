@@ -1,7 +1,6 @@
 package com.binbo_kodakusan.mtask.shared
 
 import play.api.libs.json._
-import upickle.default.{ReadWriter => RW, macroRW}
 
 case class SAccountInfo(userid: String, alias: String, email: String, pro: Int,
                         dateformat: Int, timezone: Int, hidemonths: Int,
@@ -12,5 +11,4 @@ case class SAccountInfo(userid: String, alias: String, email: String, pro: Int,
 
 object SAccountInfo {
   implicit val format = Json.format[SAccountInfo]
-  implicit val rw: RW[SAccountInfo] = macroRW
 }

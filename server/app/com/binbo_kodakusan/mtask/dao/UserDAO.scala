@@ -18,9 +18,13 @@ class UserDAO @Inject()
 
   def all(): Future[Seq[Tables.Users#TableElementType]] = db.run(Tables.Users.result)
 
-  def getById(id: Long): Future[Option[Tables.Users#TableElementType]] = db.run(Tables.Users.filter(_.id === id).result).map(_.headOption)
-  def getByUserId(userId: String): Future[Option[Tables.Users#TableElementType]] = db.run(Tables.Users.filter(_.userId === userId).result).map(_.headOption)
+  def getById(id: Long): Future[Option[Tables.Users#TableElementType]] =
+    db.run(Tables.Users.filter(_.id === id).result).map(_.headOption)
+  def getByUserId(userId: String): Future[Option[Tables.Users#TableElementType]] =
+    db.run(Tables.Users.filter(_.userId === userId).result).map(_.headOption)
 
-  def insert(user: Tables.UsersRow): Future[Unit] = db.run(Tables.Users += user).map(_ => ())
-  def updateAlias(userId: String, alias: String): Future[Unit] = db.run(Tables.Users.filter(_.userId === userId).map(_.alias).update(alias)).map(_ => ())
+  def insert(user: Tables.UsersRow): Future[Unit] =
+    db.run(Tables.Users += user).map(_ => ())
+  def updateAlias(userId: String, alias: String): Future[Unit] =
+    db.run(Tables.Users.filter(_.userId === userId).map(_.alias).update(alias)).map(_ => ())
 }

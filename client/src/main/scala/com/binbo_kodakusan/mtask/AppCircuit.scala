@@ -4,10 +4,10 @@ import diode._
 import diode.react.ReactConnector
 import org.scalajs.dom.ext.Ajax
 import org.scalajs.dom
+import play.api.libs.json.Json
 
 import scala.util.{Failure, Success}
 import scala.scalajs.concurrent.JSExecutionContext.Implicits.queue
-import upickle.default._
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -56,7 +56,9 @@ class TaskHandler[M](modelRW: ModelRW[M, Seq[shared.STask]]) extends ActionHandl
       // TODO: 初期データをサーバから取得する
       println("Initializing todos")
       effectOnly(Effect(Ajax.get("http://localhost:9000/td_get_tasks").map { xhr =>
-        GetTasks(read[Seq[shared.STask]](xhr.responseText))
+        val json = Json.parse(xhr.responseText)
+        val tasks = json.as[Seq[shared.STask]]
+        GetTasks(tasks)
       }))
     }
     case GetTasks(tasks) =>
