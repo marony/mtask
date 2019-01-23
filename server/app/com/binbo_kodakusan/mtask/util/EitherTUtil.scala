@@ -1,4 +1,4 @@
-package util
+package com.binbo_kodakusan.mtask.util
 
 import cats.data._
 import cats.implicits._

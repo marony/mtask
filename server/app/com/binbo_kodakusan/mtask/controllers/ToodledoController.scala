@@ -4,21 +4,15 @@ import cats.data._
 import cats.implicits._
 import javax.inject._
 import com.binbo_kodakusan.mtask.Constants
-import com.binbo_kodakusan.mtask.models.{SessionState, Tables}
-import models.{TdAccountInfo, TdDeletedTask, TdTask}
-import play.api.i18n.{I18nSupport, Messages}
-import play.api.libs.json.{JsValue, Json}
+import com.binbo_kodakusan.mtask.models.{SessionState, TdAccountInfo, TdDeletedTask, TdTask}
+import play.api.libs.json.{Json}
 import play.api.libs.ws._
 import play.api.mvc._
 import play.api.{Configuration, Logger}
-import services.ToodledoService
-import util._
+import com.binbo_kodakusan.mtask.services.{ToodledoApi, ToodledoService}
+import com.binbo_kodakusan.mtask.util._
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, ExecutionContext, Future}
-
-//import cats.data._
-//import cats.implicits._
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ToodledoController @Inject()

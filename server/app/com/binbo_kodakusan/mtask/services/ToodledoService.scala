@@ -1,16 +1,14 @@
-package services
+package com.binbo_kodakusan.mtask.services
 
 import cats.data._
 import cats.implicits._
 import javax.inject._
-import com.binbo_kodakusan.mtask.models.SessionState
-import models.{TdAccountInfo, TdDeletedTask, TdTask}
-import play.api.i18n.{Messages, MessagesProvider}
+import com.binbo_kodakusan.mtask.models.{SessionState, TdAccountInfo, TdDeletedTask, TdTask}
 import play.api.{Configuration, Logger}
 import play.api.libs.json.JsValue
 import play.api.libs.ws.WSClient
 import play.api.mvc.Request
-import util.{AppError, ToodledoApi}
+import com.binbo_kodakusan.mtask.util.AppError
 
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.Duration

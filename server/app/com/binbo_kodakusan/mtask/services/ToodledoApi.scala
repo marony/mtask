@@ -1,14 +1,13 @@
-package util
+package com.binbo_kodakusan.mtask.services
 
 import cats.data._
-import cats.implicits._
+import com.binbo_kodakusan.mtask.models.{SessionState, TdAccountInfo, TdDeletedTask, TdTask}
 import javax.inject._
-import models.{TdAccountInfo, TdDeletedTask, TdTask}
-import com.binbo_kodakusan.mtask.models.SessionState
 import play.api.Logger
-import play.api.i18n.{Messages, MessagesProvider}
+import play.api.i18n.Messages
 import play.api.libs.json.{JsDefined, JsUndefined}
 import play.api.libs.ws.{WSAuthScheme, WSClient}
+import com.binbo_kodakusan.mtask.util.{AppError, LogUtil, WSUtil}
 
 import scala.concurrent.{ExecutionContext, Future}
 

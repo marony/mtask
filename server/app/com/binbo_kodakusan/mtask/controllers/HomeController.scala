@@ -1,10 +1,10 @@
 package com.binbo_kodakusan.mtask.controllers
 
-import com.binbo_kodakusan.mtask.dao.UserDAO
 import com.binbo_kodakusan.mtask.models.Tables
 import javax.inject._
 import play.api.{Configuration, Logger}
 import play.api.mvc._
+import com.binbo_kodakusan.mtask.services.UserDAO
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext}

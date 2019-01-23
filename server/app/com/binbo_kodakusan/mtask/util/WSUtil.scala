@@ -1,4 +1,4 @@
-package util
+package com.binbo_kodakusan.mtask.util
 
 import play.api.Logger
 import play.api.libs.ws.ahc.AhcCurlRequestLogger

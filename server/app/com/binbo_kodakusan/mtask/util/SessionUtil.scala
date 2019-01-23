@@ -1,4 +1,4 @@
-package util
+package com.binbo_kodakusan.mtask.util
 
 import com.binbo_kodakusan.mtask.{Constants, models}
 import com.binbo_kodakusan.mtask.models.{SessionState}

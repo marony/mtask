@@ -1,10 +1,8 @@
-package com.binbo_kodakusan.mtask.dao
+package com.binbo_kodakusan.mtask.services
 
-import javax.inject.Inject
 import com.binbo_kodakusan.mtask.models.Tables
-import play.api.db.slick.DatabaseConfigProvider
-import play.api.db.slick.HasDatabaseConfigProvider
-
+import javax.inject.Inject
+import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
 import slick.jdbc.PostgresProfile
 
 import scala.concurrent.{ExecutionContext, Future}

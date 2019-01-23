@@ -1,4 +1,4 @@
-package models
+package com.binbo_kodakusan.mtask.models
 
 import play.api.libs.json._
 
