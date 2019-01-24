@@ -5,18 +5,20 @@ import cats.implicits._
 import javax.inject._
 import com.binbo_kodakusan.mtask.Constants
 import com.binbo_kodakusan.mtask.models.{SessionState, TdAccountInfo, TdDeletedTask, TdTask}
-import play.api.libs.json.{Json}
+import play.api.libs.json.Json
 import play.api.libs.ws._
 import play.api.mvc._
 import play.api.{Configuration, Logger}
-import com.binbo_kodakusan.mtask.services.{ToodledoApi, ToodledoService}
+import com.binbo_kodakusan.mtask.services.{ToodledoApi, ToodledoService, UserService}
 import com.binbo_kodakusan.mtask.util._
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ToodledoController @Inject()
-  (mcc: MessagesControllerComponents, api: ToodledoApi, service: ToodledoService)
+  (mcc: MessagesControllerComponents,
+   usersService: UserService,
+   tdApi: ToodledoApi, tdService: ToodledoService)
   (implicit ec: ExecutionContext, config: Configuration, ws: WSClient)
     extends MessagesAbstractController(mcc) {
 
@@ -73,13 +75,13 @@ class ToodledoController @Inject()
     // EitherT[Future, AppError, Result]の正常2tygロジック
     val et: EitherT[Future, AppError, Result] = for {
       oldState <- oldStateOpt
-      r1 <- api.checkState(oldState, state, error)
-      state <- api.getAccessToken(url, code, clientId, secret, device, atTokenTook)
+      r1 <- tdApi.checkState(oldState, state, error)
+      state <- tdApi.getAccessToken(url, code, clientId, secret, device, atTokenTook)
     } yield {
       // アカウント情報の取得
-      service.getAccountInfo(request, Some(state)).map { accountInfo =>
+      tdService.getAccountInfo(request, Some(state)).map { case (accountInfo, state) =>
         Logger.info(accountInfo.toString)
-        // TODO: データベースに保存する
+        usersService.upsertAccountInfo(accountInfo, Some(0), Some(state))
       }
       // うまくいったらReactのアプリを表示
       val session = SessionUtil.setTdSession(
@@ -114,7 +116,7 @@ class ToodledoController @Inject()
 
     // タスクを取得する
     val state = SessionUtil.getTdSessionState(request.session)
-    val r: Either[AppError, (TdAccountInfo, SessionState)] = service.getAccountInfo(request, state)
+    val r: Either[AppError, (TdAccountInfo, SessionState)] = tdService.getAccountInfo(request, state)
 
     r match {
       case Right(r) =>
@@ -150,11 +152,11 @@ class ToodledoController @Inject()
     val num = 1000
     val state = SessionUtil.getTdSessionState(request.session)
 
-    val r1 = service.getTasks(request, state, 0, num, 0)
+    val r1 = tdService.getTasks(request, state, 0, num, 0)
     r1 match {
       case Right((tasks, num, total, state1)) =>
         Logger.info(s"num = $num, total = $total, tasks = $tasks, state = $state1")
-        val r2 = service.getDeletedTasks(request, Some(state1))
+        val r2 = tdService.getDeletedTasks(request, Some(state1))
         r2 match {
           case Right((deletedTasks, state2)) =>
             Logger.info(s"deletedTasks = $deletedTasks, state = $state2")

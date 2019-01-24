@@ -128,8 +128,8 @@ trait Tables {
     *  @param id Database column id SqlType(varchar), PrimaryKey, Length(256,true)
     *  @param alias Database column alias SqlType(varchar), Length(256,true)
     *  @param email Database column email SqlType(varchar), Length(256,true)
-    *  @param accessToken Database column access_token SqlType(varchar), Length(256,true)
-    *  @param refreshToken Database column refresh_token SqlType(varchar), Length(256,true)
+    *  @param accessToken Database column access_token SqlType(varchar), Length(256,true), Default(None)
+    *  @param refreshToken Database column refresh_token SqlType(varchar), Length(256,true), Default(None)
     *  @param lastSync Database column last_sync SqlType(int4)
     *  @param lastEditFolder Database column last_edit_folder SqlType(int4)
     *  @param lastEditContext Database column last_edit_context SqlType(int4)
@@ -141,17 +141,17 @@ trait Tables {
     *  @param lastDeleteNote Database column last_delete_note SqlType(int4)
     *  @param lastEditList Database column last_edit_list SqlType(int4)
     *  @param lastEditOutline Database column last_edit_outline SqlType(int4) */
-  case class UsersRow(id: String, alias: String, email: String, accessToken: String, refreshToken: String, lastSync: Int, lastEditFolder: Int, lastEditContext: Int, lastEditGoal: Int, lastEditLocation: Int, lastEditTask: Int, lastDeleteTask: Int, lastEditNote: Int, lastDeleteNote: Int, lastEditList: Int, lastEditOutline: Int)
+  case class UsersRow(id: String, alias: String, email: String, accessToken: Option[String] = None, refreshToken: Option[String] = None, lastSync: Int, lastEditFolder: Int, lastEditContext: Int, lastEditGoal: Int, lastEditLocation: Int, lastEditTask: Int, lastDeleteTask: Int, lastEditNote: Int, lastDeleteNote: Int, lastEditList: Int, lastEditOutline: Int)
   /** GetResult implicit for fetching UsersRow objects using plain SQL queries */
-  implicit def GetResultUsersRow(implicit e0: GR[String], e1: GR[Int]): GR[UsersRow] = GR{
+  implicit def GetResultUsersRow(implicit e0: GR[String], e1: GR[Option[String]], e2: GR[Int]): GR[UsersRow] = GR{
     prs => import prs._
-      UsersRow.tupled((<<[String], <<[String], <<[String], <<[String], <<[String], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int]))
+      UsersRow.tupled((<<[String], <<[String], <<[String], <<?[String], <<?[String], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int]))
   }
   /** Table description of table users. Objects of this class serve as prototypes for rows in queries. */
   class Users(_tableTag: Tag) extends profile.api.Table[UsersRow](_tableTag, "users") {
     def * = (id, alias, email, accessToken, refreshToken, lastSync, lastEditFolder, lastEditContext, lastEditGoal, lastEditLocation, lastEditTask, lastDeleteTask, lastEditNote, lastDeleteNote, lastEditList, lastEditOutline) <> (UsersRow.tupled, UsersRow.unapply)
     /** Maps whole row to an option. Useful for outer joins. */
-    def ? = (Rep.Some(id), Rep.Some(alias), Rep.Some(email), Rep.Some(accessToken), Rep.Some(refreshToken), Rep.Some(lastSync), Rep.Some(lastEditFolder), Rep.Some(lastEditContext), Rep.Some(lastEditGoal), Rep.Some(lastEditLocation), Rep.Some(lastEditTask), Rep.Some(lastDeleteTask), Rep.Some(lastEditNote), Rep.Some(lastDeleteNote), Rep.Some(lastEditList), Rep.Some(lastEditOutline)).shaped.<>({r=>import r._; _1.map(_=> UsersRow.tupled((_1.get, _2.get, _3.get, _4.get, _5.get, _6.get, _7.get, _8.get, _9.get, _10.get, _11.get, _12.get, _13.get, _14.get, _15.get, _16.get)))}, (_:Any) =>  throw new Exception("Inserting into ? projection not supported."))
+    def ? = (Rep.Some(id), Rep.Some(alias), Rep.Some(email), accessToken, refreshToken, Rep.Some(lastSync), Rep.Some(lastEditFolder), Rep.Some(lastEditContext), Rep.Some(lastEditGoal), Rep.Some(lastEditLocation), Rep.Some(lastEditTask), Rep.Some(lastDeleteTask), Rep.Some(lastEditNote), Rep.Some(lastDeleteNote), Rep.Some(lastEditList), Rep.Some(lastEditOutline)).shaped.<>({r=>import r._; _1.map(_=> UsersRow.tupled((_1.get, _2.get, _3.get, _4, _5, _6.get, _7.get, _8.get, _9.get, _10.get, _11.get, _12.get, _13.get, _14.get, _15.get, _16.get)))}, (_:Any) =>  throw new Exception("Inserting into ? projection not supported."))
 
     /** Database column id SqlType(varchar), PrimaryKey, Length(256,true) */
     val id: Rep[String] = column[String]("id", O.PrimaryKey, O.Length(256,varying=true))
@@ -159,10 +159,10 @@ trait Tables {
     val alias: Rep[String] = column[String]("alias", O.Length(256,varying=true))
     /** Database column email SqlType(varchar), Length(256,true) */
     val email: Rep[String] = column[String]("email", O.Length(256,varying=true))
-    /** Database column access_token SqlType(varchar), Length(256,true) */
-    val accessToken: Rep[String] = column[String]("access_token", O.Length(256,varying=true))
-    /** Database column refresh_token SqlType(varchar), Length(256,true) */
-    val refreshToken: Rep[String] = column[String]("refresh_token", O.Length(256,varying=true))
+    /** Database column access_token SqlType(varchar), Length(256,true), Default(None) */
+    val accessToken: Rep[Option[String]] = column[Option[String]]("access_token", O.Length(256,varying=true), O.Default(None))
+    /** Database column refresh_token SqlType(varchar), Length(256,true), Default(None) */
+    val refreshToken: Rep[Option[String]] = column[Option[String]]("refresh_token", O.Length(256,varying=true), O.Default(None))
     /** Database column last_sync SqlType(int4) */
     val lastSync: Rep[Int] = column[Int]("last_sync")
     /** Database column last_edit_folder SqlType(int4) */
