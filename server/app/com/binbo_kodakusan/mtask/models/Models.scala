@@ -60,24 +60,22 @@ trait Tables {
   lazy val PlayEvolutions = new TableQuery(tag => new PlayEvolutions(tag))
 
   /** Row type of table Tasks */
-  type TasksRow = HCons[Long,HCons[String,HCons[String,HCons[Int,HCons[Int,HCons[Int,HCons[Int,HCons[Int,HCons[Int,HCons[Int,HCons[String,HCons[Int,HCons[Int,HCons[Int,HCons[String,HCons[Int,HCons[Int,HCons[Int,HCons[Int,HCons[String,HCons[Int,HCons[Int,HCons[Int,HCons[Option[String],HNil]]]]]]]]]]]]]]]]]]]]]]]]
+  type TasksRow = HCons[String,HCons[String,HCons[Int,HCons[Int,HCons[Int,HCons[Int,HCons[Int,HCons[Int,HCons[Int,HCons[String,HCons[Int,HCons[Int,HCons[Int,HCons[String,HCons[Int,HCons[Int,HCons[Int,HCons[Int,HCons[String,HCons[Int,HCons[Int,HCons[Int,HCons[Option[String],HNil]]]]]]]]]]]]]]]]]]]]]]]
   /** Constructor for TasksRow providing default values if available in the database schema. */
-  def TasksRow(id: Long, taskId: String, title: String, lastSync: Int, modified: Int, completed: Int, folderId: Int, contextId: Int, goalId: Int, locationId: Int, tag: String, startDate: Int, dueDate: Int, remind: Int, repeat: String, status: Int, star: Int, priority: Int, added: Int, note: String, parentId: Int, childrenCount: Int, orderNo: Int, meta: Option[String] = None): TasksRow = {
-    id :: taskId :: title :: lastSync :: modified :: completed :: folderId :: contextId :: goalId :: locationId :: tag :: startDate :: dueDate :: remind :: repeat :: status :: star :: priority :: added :: note :: parentId :: childrenCount :: orderNo :: meta :: HNil
+  def TasksRow(id: String, title: String, lastSync: Int, modified: Int, completed: Int, folderId: Int, contextId: Int, goalId: Int, locationId: Int, tag: String, startDate: Int, dueDate: Int, remind: Int, repeat: String, status: Int, star: Int, priority: Int, added: Int, note: String, parentId: Int, childrenCount: Int, orderNo: Int, meta: Option[String] = None): TasksRow = {
+    id :: title :: lastSync :: modified :: completed :: folderId :: contextId :: goalId :: locationId :: tag :: startDate :: dueDate :: remind :: repeat :: status :: star :: priority :: added :: note :: parentId :: childrenCount :: orderNo :: meta :: HNil
   }
   /** GetResult implicit for fetching TasksRow objects using plain SQL queries */
-  implicit def GetResultTasksRow(implicit e0: GR[Long], e1: GR[String], e2: GR[Int], e3: GR[Option[String]]): GR[TasksRow] = GR{
+  implicit def GetResultTasksRow(implicit e0: GR[String], e1: GR[Int], e2: GR[Option[String]]): GR[TasksRow] = GR{
     prs => import prs._
-      <<[Long] :: <<[String] :: <<[String] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[String] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[String] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[String] :: <<[Int] :: <<[Int] :: <<[Int] :: <<?[String] :: HNil
+      <<[String] :: <<[String] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[String] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[String] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[Int] :: <<[String] :: <<[Int] :: <<[Int] :: <<[Int] :: <<?[String] :: HNil
   }
   /** Table description of table tasks. Objects of this class serve as prototypes for rows in queries. */
   class Tasks(_tableTag: Tag) extends profile.api.Table[TasksRow](_tableTag, "tasks") {
-    def * = id :: taskId :: title :: lastSync :: modified :: completed :: folderId :: contextId :: goalId :: locationId :: tag :: startDate :: dueDate :: remind :: repeat :: status :: star :: priority :: added :: note :: parentId :: childrenCount :: orderNo :: meta :: HNil
+    def * = id :: title :: lastSync :: modified :: completed :: folderId :: contextId :: goalId :: locationId :: tag :: startDate :: dueDate :: remind :: repeat :: status :: star :: priority :: added :: note :: parentId :: childrenCount :: orderNo :: meta :: HNil
 
-    /** Database column id SqlType(bigserial), AutoInc, PrimaryKey */
-    val id: Rep[Long] = column[Long]("id", O.AutoInc, O.PrimaryKey)
-    /** Database column task_id SqlType(varchar), Length(255,true) */
-    val taskId: Rep[String] = column[String]("task_id", O.Length(255,varying=true))
+    /** Database column id SqlType(varchar), PrimaryKey, Length(255,true) */
+    val id: Rep[String] = column[String]("id", O.PrimaryKey, O.Length(255,varying=true))
     /** Database column title SqlType(varchar), Length(255,true) */
     val title: Rep[String] = column[String]("title", O.Length(255,varying=true))
     /** Database column last_sync SqlType(int4) */
@@ -122,20 +120,16 @@ trait Tables {
     val orderNo: Rep[Int] = column[Int]("order_no")
     /** Database column meta SqlType(text), Default(None) */
     val meta: Rep[Option[String]] = column[Option[String]]("meta", O.Default(None))
-
-    /** Uniqueness Index over (taskId) (database name ix_tasks_task_id) */
-    val index1 = index("ix_tasks_task_id", taskId :: HNil, unique=true)
   }
   /** Collection-like TableQuery object for table Tasks */
   lazy val Tasks = new TableQuery(tag => new Tasks(tag))
 
   /** Entity class storing rows of table Users
-    *  @param id Database column id SqlType(bigserial), AutoInc, PrimaryKey
-    *  @param userId Database column user_id SqlType(varchar), Length(255,true)
-    *  @param alias Database column alias SqlType(varchar), Length(255,true)
-    *  @param email Database column email SqlType(varchar), Length(255,true)
-    *  @param accessToken Database column access_token SqlType(varchar), Length(255,true)
-    *  @param refreshToken Database column refresh_token SqlType(varchar), Length(255,true)
+    *  @param id Database column id SqlType(varchar), PrimaryKey, Length(256,true)
+    *  @param alias Database column alias SqlType(varchar), Length(256,true)
+    *  @param email Database column email SqlType(varchar), Length(256,true)
+    *  @param accessToken Database column access_token SqlType(varchar), Length(256,true)
+    *  @param refreshToken Database column refresh_token SqlType(varchar), Length(256,true)
     *  @param lastSync Database column last_sync SqlType(int4)
     *  @param lastEditFolder Database column last_edit_folder SqlType(int4)
     *  @param lastEditContext Database column last_edit_context SqlType(int4)
@@ -147,30 +141,28 @@ trait Tables {
     *  @param lastDeleteNote Database column last_delete_note SqlType(int4)
     *  @param lastEditList Database column last_edit_list SqlType(int4)
     *  @param lastEditOutline Database column last_edit_outline SqlType(int4) */
-  case class UsersRow(id: Long, userId: String, alias: String, email: String, accessToken: String, refreshToken: String, lastSync: Int, lastEditFolder: Int, lastEditContext: Int, lastEditGoal: Int, lastEditLocation: Int, lastEditTask: Int, lastDeleteTask: Int, lastEditNote: Int, lastDeleteNote: Int, lastEditList: Int, lastEditOutline: Int)
+  case class UsersRow(id: String, alias: String, email: String, accessToken: String, refreshToken: String, lastSync: Int, lastEditFolder: Int, lastEditContext: Int, lastEditGoal: Int, lastEditLocation: Int, lastEditTask: Int, lastDeleteTask: Int, lastEditNote: Int, lastDeleteNote: Int, lastEditList: Int, lastEditOutline: Int)
   /** GetResult implicit for fetching UsersRow objects using plain SQL queries */
-  implicit def GetResultUsersRow(implicit e0: GR[Long], e1: GR[String], e2: GR[Int]): GR[UsersRow] = GR{
+  implicit def GetResultUsersRow(implicit e0: GR[String], e1: GR[Int]): GR[UsersRow] = GR{
     prs => import prs._
-      UsersRow.tupled((<<[Long], <<[String], <<[String], <<[String], <<[String], <<[String], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int]))
+      UsersRow.tupled((<<[String], <<[String], <<[String], <<[String], <<[String], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int], <<[Int]))
   }
   /** Table description of table users. Objects of this class serve as prototypes for rows in queries. */
   class Users(_tableTag: Tag) extends profile.api.Table[UsersRow](_tableTag, "users") {
-    def * = (id, userId, alias, email, accessToken, refreshToken, lastSync, lastEditFolder, lastEditContext, lastEditGoal, lastEditLocation, lastEditTask, lastDeleteTask, lastEditNote, lastDeleteNote, lastEditList, lastEditOutline) <> (UsersRow.tupled, UsersRow.unapply)
+    def * = (id, alias, email, accessToken, refreshToken, lastSync, lastEditFolder, lastEditContext, lastEditGoal, lastEditLocation, lastEditTask, lastDeleteTask, lastEditNote, lastDeleteNote, lastEditList, lastEditOutline) <> (UsersRow.tupled, UsersRow.unapply)
     /** Maps whole row to an option. Useful for outer joins. */
-    def ? = (Rep.Some(id), Rep.Some(userId), Rep.Some(alias), Rep.Some(email), Rep.Some(accessToken), Rep.Some(refreshToken), Rep.Some(lastSync), Rep.Some(lastEditFolder), Rep.Some(lastEditContext), Rep.Some(lastEditGoal), Rep.Some(lastEditLocation), Rep.Some(lastEditTask), Rep.Some(lastDeleteTask), Rep.Some(lastEditNote), Rep.Some(lastDeleteNote), Rep.Some(lastEditList), Rep.Some(lastEditOutline)).shaped.<>({r=>import r._; _1.map(_=> UsersRow.tupled((_1.get, _2.get, _3.get, _4.get, _5.get, _6.get, _7.get, _8.get, _9.get, _10.get, _11.get, _12.get, _13.get, _14.get, _15.get, _16.get, _17.get)))}, (_:Any) =>  throw new Exception("Inserting into ? projection not supported."))
+    def ? = (Rep.Some(id), Rep.Some(alias), Rep.Some(email), Rep.Some(accessToken), Rep.Some(refreshToken), Rep.Some(lastSync), Rep.Some(lastEditFolder), Rep.Some(lastEditContext), Rep.Some(lastEditGoal), Rep.Some(lastEditLocation), Rep.Some(lastEditTask), Rep.Some(lastDeleteTask), Rep.Some(lastEditNote), Rep.Some(lastDeleteNote), Rep.Some(lastEditList), Rep.Some(lastEditOutline)).shaped.<>({r=>import r._; _1.map(_=> UsersRow.tupled((_1.get, _2.get, _3.get, _4.get, _5.get, _6.get, _7.get, _8.get, _9.get, _10.get, _11.get, _12.get, _13.get, _14.get, _15.get, _16.get)))}, (_:Any) =>  throw new Exception("Inserting into ? projection not supported."))
 
-    /** Database column id SqlType(bigserial), AutoInc, PrimaryKey */
-    val id: Rep[Long] = column[Long]("id", O.AutoInc, O.PrimaryKey)
-    /** Database column user_id SqlType(varchar), Length(255,true) */
-    val userId: Rep[String] = column[String]("user_id", O.Length(255,varying=true))
-    /** Database column alias SqlType(varchar), Length(255,true) */
-    val alias: Rep[String] = column[String]("alias", O.Length(255,varying=true))
-    /** Database column email SqlType(varchar), Length(255,true) */
-    val email: Rep[String] = column[String]("email", O.Length(255,varying=true))
-    /** Database column access_token SqlType(varchar), Length(255,true) */
-    val accessToken: Rep[String] = column[String]("access_token", O.Length(255,varying=true))
-    /** Database column refresh_token SqlType(varchar), Length(255,true) */
-    val refreshToken: Rep[String] = column[String]("refresh_token", O.Length(255,varying=true))
+    /** Database column id SqlType(varchar), PrimaryKey, Length(256,true) */
+    val id: Rep[String] = column[String]("id", O.PrimaryKey, O.Length(256,varying=true))
+    /** Database column alias SqlType(varchar), Length(256,true) */
+    val alias: Rep[String] = column[String]("alias", O.Length(256,varying=true))
+    /** Database column email SqlType(varchar), Length(256,true) */
+    val email: Rep[String] = column[String]("email", O.Length(256,varying=true))
+    /** Database column access_token SqlType(varchar), Length(256,true) */
+    val accessToken: Rep[String] = column[String]("access_token", O.Length(256,varying=true))
+    /** Database column refresh_token SqlType(varchar), Length(256,true) */
+    val refreshToken: Rep[String] = column[String]("refresh_token", O.Length(256,varying=true))
     /** Database column last_sync SqlType(int4) */
     val lastSync: Rep[Int] = column[Int]("last_sync")
     /** Database column last_edit_folder SqlType(int4) */
@@ -193,11 +185,7 @@ trait Tables {
     val lastEditList: Rep[Int] = column[Int]("last_edit_list")
     /** Database column last_edit_outline SqlType(int4) */
     val lastEditOutline: Rep[Int] = column[Int]("last_edit_outline")
-
-    /** Uniqueness Index over (userId) (database name ix_users_user_id) */
-    val index1 = index("ix_users_user_id", userId, unique=true)
   }
   /** Collection-like TableQuery object for table Users */
   lazy val Users = new TableQuery(tag => new Users(tag))
 }
-
