@@ -22,3 +22,19 @@ object LogUtil {
     Logger.error(str.toString())
   }
 }
+
+/**
+  * Logging("関数名", { 処理 })
+  * で関数のログを出力する
+  */
+object Logging {
+  def apply[R](name: String, f: => R): R = {
+    try {
+      Logger.info(s"START: $name")
+      f
+    }
+    finally {
+      Logger.info(s"EBD: $name")
+    }
+  }
+}

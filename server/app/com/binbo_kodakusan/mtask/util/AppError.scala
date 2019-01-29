@@ -12,3 +12,5 @@ object AppError {
   case class Json(json: JsValue) extends AppError
   case class TokenExpired(json: JsValue, tdState: SessionState) extends AppError
 }
+
+class ToodledoException(errorCode: String, errorDesc: String, json: JsValue) extends RuntimeException

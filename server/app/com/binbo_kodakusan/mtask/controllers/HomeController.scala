@@ -14,25 +14,25 @@ import scala.util.{Failure, Success}
 
 @Singleton
 class HomeController @Inject()
-  (config: Configuration, cc: ControllerComponents)
+  (config: Configuration, mcc: MessagesControllerComponents)
   (userDAO: UserQuery)
   (implicit ec: ExecutionContext,
    usersService: UserService,
    tdApi: ToodledoApi, tdService: ToodledoService,
    webJarsUtil: org.webjars.play.WebJarsUtil)
-    extends AbstractController(cc) {
+    extends MessagesAbstractController(mcc) {
 
   /**
     * トップページ
     *
     * @return
     */
-  def index = Action { implicit request =>
+  def index = Action { implicit request: MessagesRequest[AnyContent] =>
     SessionUtil.getTdSessionState(request.session) match {
       case Some(state) =>
         // セッションが有効ならば最初からアプリに飛ばす
         // アカウント情報の取得
-        tdService.getAccountInfo(request, Some(state)) match {
+        tdService.getAccountInfo(state) match {
           case Right((accountInfo, _: SessionState)) =>
             Logger.info(accountInfo.toString)
             usersService.upsertAccountInfo(accountInfo, Some(0), Some(state))
@@ -57,7 +57,7 @@ class HomeController @Inject()
     * Reactアプリ
     * @return
     */
-  def app = Action { implicit request =>
+  def app = Action { implicit request: MessagesRequest[AnyContent] =>
     Logger.info("START: Application(index)")
 
     Ok(views.html.app("タイトルだよ", "Message"))
