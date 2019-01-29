@@ -34,7 +34,7 @@ object Logging {
       f
     }
     finally {
-      Logger.info(s"EBD: $name")
+      Logger.info(s"END: $name")
     }
   }
 }
