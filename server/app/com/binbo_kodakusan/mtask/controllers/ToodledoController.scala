@@ -1,23 +1,24 @@
 package com.binbo_kodakusan.mtask.controllers
 
-import cats.data._
-import cats.implicits._
 import javax.inject._
 import com.binbo_kodakusan.mtask.Constants
-import com.binbo_kodakusan.mtask.models.{SessionState, TdAccountInfo, TdDeletedTask, TdTask}
+import com.binbo_kodakusan.mtask.models.{SessionState, TdAccountInfo}
 import play.api.libs.json.Json
 import play.api.libs.ws._
 import play.api.mvc._
 import play.api.{Configuration, Logger}
 import com.binbo_kodakusan.mtask.services.{ToodledoApi, ToodledoService, UserService}
 import com.binbo_kodakusan.mtask.util._
+import cats.data._
+import cats.implicits._
+import play.api.i18n.Messages
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
 @Singleton
 class ToodledoController @Inject()
   (mcc: MessagesControllerComponents,
-   usersService: UserService,
+   userService: UserService,
    tdApi: ToodledoApi, tdService: ToodledoService)
   (implicit ec: ExecutionContext, config: Configuration, ws: WSClient)
     extends MessagesAbstractController(mcc) {
@@ -58,7 +59,7 @@ class ToodledoController @Inject()
     * @param error
     * @return
     */
-  def callback(code: String, state: String, error: Option[String]) = Action { implicit request: MessagesRequest[AnyContent] =>
+  def callback(code: String, state: String, error: Option[String]) = Action.async { implicit request: MessagesRequest[AnyContent] =>
     Logging("ToodledoController.callback", {
       Logger.info(s"ToodledoController::callback called: code = $code, state = $state, error = $error")
 
@@ -70,15 +71,9 @@ class ToodledoController @Inject()
       // まだat_token_tookはない可能性がある
       val atTokenTook = request.session.get(Constants.SessionName.TD_AT_TOKEN_TOOK).map(_.toLong)
 
-      (tdService.checkState(oldState, state, error),
-        tdService.getAccessToken(code, clientId, secret, device, atTokenTook)) match {
-        case (Right(_), Right(state)) =>
-          // アカウント情報の取得
-          tdService.getAccountInfo(state).map { case (accountInfo, state) =>
-            Logger.info(accountInfo.toString)
-            usersService.upsertAccountInfo(accountInfo, Some(0), Some(state))
-          }
-          // うまくいったらReactのアプリを表示
+      val et = tdService.login(oldState, state, error, code, clientId, secret, device, atTokenTook)
+      val f = et.value.map {
+        case Right(state) =>
           val session = SessionUtil.setTdSession(
             // stateをセッションから削除
             SessionUtil.remove(request.session, Constants.SessionName.TD_STATE),
@@ -86,15 +81,19 @@ class ToodledoController @Inject()
             state)
           Redirect(routes.HomeController.app)
             .withSession(session)
-        case (Left(l), _) =>
+        case Left(e) =>
+          // エラー
           Redirect(routes.HomeController.index)
-            .flashing("danger" -> l.toString)
+            .flashing("danger" -> e.toString)
             .withNewSession
-        case (_, Left(l)) =>
+      }.recover {
+        case ex: Throwable =>
+          // 例外
           Redirect(routes.HomeController.index)
-            .flashing("danger" -> l.toString)
+            .flashing("danger" -> ex.toString)
             .withNewSession
       }
+      f
     })
   }
 
@@ -106,26 +105,33 @@ class ToodledoController @Inject()
   def getAccountInfo() = Action { implicit request: MessagesRequest[AnyContent] =>
     Logging("ToodledoController.getAccountInfo", {
       // タスクを取得する
-      val state = SessionUtil.getTdSessionState(request.session)
-      val r: Either[AppError, (TdAccountInfo, SessionState)] = tdService.getAccountInfo(state.get)
+      val stateOpt = SessionUtil.getTdSessionState(request.session)
+      stateOpt match {
+        case Some(state) =>
+          val r = tdService.getAccountInfo(state)
+          r match {
+            case Right(r) =>
+              val accountInfo = r._1
+              val state = r._2
+              Logger.info(s"accountInfo = $accountInfo, state = $state")
 
-      r match {
-        case Right(r) =>
-          val accountInfo = r._1
-          val state = r._2
-          Logger.info(s"accountInfo = $accountInfo, state = $state")
+              val session = SessionUtil.setTdSession(
+                request.session,
+                // セッションに色々設定
+                state)
 
-          val session = SessionUtil.setTdSession(
-            request.session,
-            // セッションに色々設定
-            state)
-
-          Ok(Json.toJson(accountInfo.toShared))
-            .withSession(session)
-        case Left(e) =>
-          Logger.error(e.toString)
+              Ok(Json.toJson(accountInfo.toShared))
+                .withSession(session)
+            case Left(e) =>
+              Logger.error(e.toString)
+              Redirect(routes.HomeController.index)
+                .flashing("danger" -> e.toString)
+                .withNewSession
+          }
+        case _ =>
+          Logger.error("ログインしてない")
           Redirect(routes.HomeController.index)
-            .flashing("danger" -> e.toString)
+            .flashing("danger" -> Messages("toodledo.not_login"))
             .withNewSession
       }
     })

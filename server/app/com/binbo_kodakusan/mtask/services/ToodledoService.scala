@@ -1,44 +1,47 @@
 package com.binbo_kodakusan.mtask.services
 
-import com.binbo_kodakusan.mtask.Constants
 import javax.inject._
 import com.binbo_kodakusan.mtask.models.{SessionState, TdAccountInfo, TdDeletedTask, TdTask}
 import play.api.{Configuration, Logger}
 import play.api.libs.ws.WSClient
-import play.api.mvc.{MessagesRequest}
-import com.binbo_kodakusan.mtask.util.{AppError, Logging}
+import play.api.mvc.MessagesRequest
+import com.binbo_kodakusan.mtask.util.{AppError, Logging, SessionUtil}
+import cats.data._
+import cats.implicits._
+import com.binbo_kodakusan.mtask.Constants
+import com.binbo_kodakusan.mtask.controllers.routes
+import play.api.i18n.Messages
 
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 
 @Singleton
 class ToodledoService @Inject()
-  (api: ToodledoApi)
+  (api: ToodledoApi, userService: UserService)
   (implicit config: Configuration, ws: WSClient, ec: ExecutionContext) {
 
   /**
     * Toodledoからのコールバックが正しいことをチェックする
     *
-    * @param oldState
+    * @param oldStateOpt
     * @param state
     * @param error
     * @param request
     * @tparam T
     * @return
     */
-  def checkState[T](oldState: Option[String], state: String, error: Option[String])
+  private def checkState[T](oldStateOpt: Option[String], state: String, error: Option[String])
                    (implicit request: MessagesRequest[T])
-    : Either[AppError, Unit] = {
+    : EitherT[Future, AppError, Unit] = {
 
     Logging("ToodledoService.checkState", {
-      val oldStateOpt = request.session.get(Constants.SessionName.TD_STATE)
       oldStateOpt match {
         case Some(oldState) =>
-          val r1 = api.checkState(oldState, state, error)
-          // FIXME: 同期で待ちたくない
-          val r2 = Await.result(r1.value, Duration.Inf)
-          r2
-        case _ => Left(AppError.Error("FIXME: message"))
+          api.checkState(oldState, state, error)
+        case _ => EitherT.leftT {
+          // FIXME: メッセージ定義
+          AppError.Error("FIXME: message")
+        }
       }
     })
   }
@@ -54,24 +57,87 @@ class ToodledoService @Inject()
     * @tparam T
     * @return
     */
-  def getAccessToken[T](code: String, clientId: String,
+  private def getAccessToken[T](code: String, clientId: String,
                         secret: String, device: String, atTokenTook: Option[Long])
-    : Either[AppError, SessionState] = {
+    : EitherT[Future, AppError, SessionState] = {
 
     Logging("ToodledoService.getAccessToken", {
-      val f1 = for {
+      val f = for {
         state <- api.getAccessToken(code, clientId, secret, device, atTokenTook)
       } yield {
         Logger.info(state.toString)
-        Right(state)
+        Either.right[AppError, SessionState](state)
       }
-      // 例外をAppErrorに変換
-      val f2 = f1.recover {
-        case ex: Throwable =>
-          Left(AppError.Exception(ex))
+      EitherT(f)
+    })
+  }
+
+  /**
+    * Toodledoを通してログイン
+    *
+    * @param oldState
+    * @param state
+    * @param error
+    * @param code
+    * @param clientId
+    * @param secret
+    * @param device
+    * @param atTokenTook
+    * @param request
+    * @tparam T
+    * @return
+    */
+  def login[T](oldState: Option[String], state: String, error: Option[String],
+                             code: String, clientId: String,
+                             secret: String, device: String, atTokenTook: Option[Long])
+                               (implicit request: MessagesRequest[T])
+    : EitherT[Future, AppError, SessionState] = {
+
+    Logging("ToodledoService.login", {
+      val et = for {
+        _ <- checkState(oldState, state, error)
+        state <- getAccessToken(code, clientId, secret, device, atTokenTook)
+      } yield {
+        // アカウント情報の取得
+        getAccountInfo(state).map { case (accountInfo, state) =>
+          Logger.info(accountInfo.toString)
+          userService.upsertAccountInfo(accountInfo, Some(0), Some(state))
+        }
+        state
       }
-      // FIXME: 同期で待ちたくない
-      Await.result(f2, Duration.Inf)
+      et
+    })
+  }
+
+  /**
+    * 残っていたセッションを通してログイン
+    * 
+    * @param request
+    * @tparam T
+    * @return
+    */
+  def loginFromSession[T]()
+                         (implicit request: MessagesRequest[T])
+    : EitherT[Future, AppError, SessionState] = {
+
+    Logging("ToodledoService.loginFromSession", {
+      val stateOpt = SessionUtil.getTdSessionState(request.session)
+      stateOpt match {
+        case Some(state) =>
+          // セッションが有効ならば最初からアプリに飛ばす
+          // アカウント情報の取得
+          getAccountInfo(state) match {
+            case Right((accountInfo, _: SessionState)) =>
+              Logger.info(accountInfo.toString)
+              userService.upsertAccountInfo(accountInfo, Some(0), Some(state))
+              EitherT.rightT(state)
+            case Left(e) =>
+              Logger.error(e.toString)
+              EitherT.leftT(AppError.Error(e.toString))
+          }
+        case None =>
+          EitherT.leftT(AppError.Error("FIXME: message"))
+      }
     })
   }
 
@@ -119,7 +185,7 @@ class ToodledoService @Inject()
     * @return
     */
   def getTasks[T](oldState: SessionState,
-                  start: Int, num: Int, count: Int, retry: Boolean = false)
+                  start: Int, num: Int, count: Int)
                  (implicit request: MessagesRequest[T])
     : Either[AppError, (Seq[TdTask], Int, Int, SessionState)] = {
 
