@@ -13,7 +13,7 @@ import cats.data._
 import cats.implicits._
 import play.api.i18n.Messages
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ToodledoController @Inject()
@@ -89,6 +89,7 @@ class ToodledoController @Inject()
       }.recover {
         case ex: Throwable =>
           // 例外
+          LogUtil.errorEx(ex)
           Redirect(routes.HomeController.index)
             .flashing("danger" -> ex.toString)
             .withNewSession
@@ -102,17 +103,14 @@ class ToodledoController @Inject()
     *
     * @return
     */
-  def getAccountInfo() = Action { implicit request: MessagesRequest[AnyContent] =>
+  def getAccountInfo() = Action.async { implicit request: MessagesRequest[AnyContent] =>
     Logging("ToodledoController.getAccountInfo", {
-      // タスクを取得する
       val stateOpt = SessionUtil.getTdSessionState(request.session)
       stateOpt match {
         case Some(state) =>
-          val r = tdService.getAccountInfo(state)
-          r match {
-            case Right(r) =>
-              val accountInfo = r._1
-              val state = r._2
+          val et = tdService.getAccountInfo(state)
+          val f = et.value.map {
+            case Right((accountInfo, state)) =>
               Logger.info(s"accountInfo = $accountInfo, state = $state")
 
               val session = SessionUtil.setTdSession(
@@ -127,55 +125,71 @@ class ToodledoController @Inject()
               Redirect(routes.HomeController.index)
                 .flashing("danger" -> e.toString)
                 .withNewSession
+          }.recover {
+            case ex: Throwable =>
+              // 例外
+              LogUtil.errorEx(ex)
+              Redirect(routes.HomeController.index)
+                .flashing("danger" -> ex.toString)
+                .withNewSession
           }
+          f
         case _ =>
           Logger.error("ログインしてない")
-          Redirect(routes.HomeController.index)
-            .flashing("danger" -> Messages("toodledo.not_login"))
-            .withNewSession
+          Future.successful {
+            Redirect(routes.HomeController.index)
+              .flashing("danger" -> Messages("toodledo.not_login"))
+              .withNewSession
+          }
       }
     })
   }
 
   /**
     * タスク一覧を取得する
-    * 削除済みのタスクは取り除く
     *
     * @return
     */
-  def getTasks() = Action { implicit request: MessagesRequest[AnyContent] =>
+  def getTasks() = Action.async { implicit request: MessagesRequest[AnyContent] =>
     Logging("ToodledoController.getTasks", {
-      // タスクを取得する
       val num = 1000
-      val state = SessionUtil.getTdSessionState(request.session)
 
-      val r1 = tdService.getTasks(state.get, 0, num, 0)
-      r1 match {
-        case Right((tasks, num, total, state1)) =>
-          Logger.info(s"num = $num, total = $total, tasks = $tasks, state = $state1")
-          val r2 = tdService.getDeletedTasks(state1)
-          r2 match {
-            case Right((deletedTasks, state2)) =>
-              Logger.info(s"deletedTasks = $deletedTasks, state = $state2")
+      val stateOpt = SessionUtil.getTdSessionState(request.session)
+      stateOpt match {
+        case Some(state) =>
+          val et = tdService.getTasks(state, 0, num, 0)
+          val f = et.value.map {
+            case Right((tasks, num, total, state)) =>
+              Logger.info(s"num = $num, total = $total, tasks = $tasks, state = $state")
+
               val session = SessionUtil.setTdSession(
                 request.session,
                 // セッションに色々設定
-                state2)
+                state)
 
-              // 削除済みのタスクを取り除く
-              Ok(Json.toJson(tasks.filter(t => deletedTasks.forall(d => t.id != d.id)).map(t => t.toShared())))
+              Ok(Json.toJson(tasks.map(t => t.toShared)))
                 .withSession(session)
             case Left(e) =>
               Logger.error(e.toString)
               Redirect(routes.HomeController.index)
                 .flashing("danger" -> e.toString)
                 .withNewSession
+          }.recover {
+            case ex: Throwable =>
+              // 例外
+              LogUtil.errorEx(ex)
+              Redirect(routes.HomeController.index)
+                .flashing("danger" -> ex.toString)
+                .withNewSession
           }
-        case Left(e) =>
-          Logger.error(e.toString)
-          Redirect(routes.HomeController.index)
-            .flashing("danger" -> e.toString)
-            .withNewSession
+          f
+        case _ =>
+          Logger.error("ログインしてない")
+          Future.successful {
+            Redirect(routes.HomeController.index)
+              .flashing("danger" -> Messages("toodledo.not_login"))
+              .withNewSession
+          }
       }
     })
   }

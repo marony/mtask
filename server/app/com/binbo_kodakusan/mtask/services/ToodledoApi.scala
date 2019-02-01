@@ -16,6 +16,8 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 class ToodledoApi @Inject()
   (implicit config: Configuration, ex: ExecutionContext, ws: WSClient) {
 
+  val ERROR_UNAUTHORIZED = 2
+
   /**
     * コールバックの内容をチェックしてエラーを返す
     *
@@ -130,6 +132,7 @@ class ToodledoApi @Inject()
 
   /**
     * アカウント情報を取得する
+    * 認証が切れていたらトークンを再取得する
     *
     * @param url
     * @param state
@@ -153,14 +156,14 @@ class ToodledoApi @Inject()
       wsreq.get.map { response =>
         Logger.info(response.body)
 
-        ((response.json \ "errorCode").asOpt[String], (response.json \ "errorDesc").asOpt[String]) match {
+        ((response.json \ "errorCode").asOpt[Int], (response.json \ "errorDesc").asOpt[String]) match {
           case (Some(errorCode), Some(errorDesc)) =>
             // errorCodeが設定されているのでエラー
             // ex) アクセストークンが切れている場合
             // {"errorCode":2,"errorDesc":"Unauthorized","errors":[{"status":"2","message":"Unauthorized"}]}
             // ex) メンテナンス中の場合
             // {"errorCode":4,"errorDesc":"The API is offline for maintenance."}
-            if (!retry && errorCode == "2") {
+            if (!retry && errorCode == ERROR_UNAUTHORIZED) {
               // トークンの再取得
               val rr = for {
                 newState <- refreshAccessToken(state)
@@ -184,6 +187,7 @@ class ToodledoApi @Inject()
 
   /**
     * タスクを取得する
+    * 認証が切れていたらトークンを再取得する
     *
     * @param start
     * @param num
@@ -212,14 +216,14 @@ class ToodledoApi @Inject()
       wsreq.get.map { response =>
         Logger.info(response.body)
 
-        ((response.json \ "errorCode").asOpt[String], (response.json \ "errorDesc").asOpt[String]) match {
+        ((response.json \ "errorCode").asOpt[Int], (response.json \ "errorDesc").asOpt[String]) match {
           case (Some(errorCode), Some(errorDesc)) =>
             // errorCodeが設定されているのでエラー
             // ex) アクセストークンが切れている場合
             // {"errorCode":2,"errorDesc":"Unauthorized","errors":[{"status":"2","message":"Unauthorized"}]}
             // ex) メンテナンス中の場合
             // {"errorCode":4,"errorDesc":"The API is offline for maintenance."}
-            if (!retry && errorCode == "2") {
+            if (!retry && errorCode == ERROR_UNAUTHORIZED) {
               // トークンの再取得
               val rr = for {
                 newState <- refreshAccessToken(state)
@@ -247,6 +251,7 @@ class ToodledoApi @Inject()
 
   /**
     * 削除されたタスクを取得する
+    * 認証が切れていたらトークンを再取得する
     *
     * @param url
     * @param afterOpt
@@ -271,14 +276,14 @@ class ToodledoApi @Inject()
       wsreq.get.map { response =>
         Logger.info(response.body)
 
-        ((response.json \ "errorCode").asOpt[String], (response.json \ "errorDesc").asOpt[String]) match {
+        ((response.json \ "errorCode").asOpt[Int], (response.json \ "errorDesc").asOpt[String]) match {
           case (Some(errorCode), Some(errorDesc)) =>
             // errorCodeが設定されているのでエラー
             // ex) アクセストークンが切れている場合
             // {"errorCode":2,"errorDesc":"Unauthorized","errors":[{"status":"2","message":"Unauthorized"}]}
             // ex) メンテナンス中の場合
             // {"errorCode":4,"errorDesc":"The API is offline for maintenance."}
-            if (!retry && errorCode == "2") {
+            if (!retry && errorCode == ERROR_UNAUTHORIZED) {
               // トークンの再取得
               val rr = for {
                 newState <- refreshAccessToken(state)
