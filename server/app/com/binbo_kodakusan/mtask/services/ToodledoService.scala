@@ -184,6 +184,7 @@ class ToodledoService @Inject()
           if (count + newNum >= newTotal) {
             Right(r)
           } else {
+            // まだ全件取得していない
             val f2 = getTasks(newState, start + num, num, count + newNum)
             // FIXME: 同期で待ちたくない
             val r2 = Await.result(f2.value, Duration.Inf)
@@ -204,23 +205,10 @@ class ToodledoService @Inject()
     */
   def getDeletedTasks[T](oldState: SessionState)
                         (implicit request: MessagesRequest[T])
-    : Either[AppError, (Seq[TdDeletedTask], SessionState)] = {
+    : EitherT[Future, AppError, (Seq[TdDeletedTask], SessionState)] = {
 
     Logging("ToodledoService.getDeletedTasks", {
-      val f1 = for {
-        accountInfoAndState <- api.getDeletedTasks(None, oldState)
-      } yield {
-        val (deletedTasks, state2) = accountInfoAndState
-        Logger.info(deletedTasks.toString)
-        Right((deletedTasks, state2))
-      }
-      // 例外をAppErrorに変換
-      val f2 = f1.recover {
-        case ex: Throwable =>
-          Left(AppError.Exception(ex))
-      }
-      // FIXME: 同期で待ちたくない
-      Await.result(f2, Duration.Inf)
+      EitherT.right(api.getDeletedTasks(None, oldState))
     })
   }
 }
